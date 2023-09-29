@@ -14,7 +14,6 @@ pub struct DecisionLog<D, OP> where D: ApplicationData,
 impl<D, OP> DecisionLog<D, OP> where D: ApplicationData,
                                      OP: OrderingProtocolMessage<D> {
 
-
     pub fn new() -> Self {
         Self {
             last_exec: None,
@@ -22,6 +21,7 @@ impl<D, OP> DecisionLog<D, OP> where D: ApplicationData,
         }
     }
 
+    /// Initialize a decision log from a given vector of proofs
     pub fn from_decided(last_exec: SeqNo, proofs: Vec<SerProof<D, OP>>) -> Self {
         Self {
             last_exec: Some(last_exec),
@@ -29,6 +29,7 @@ impl<D, OP> DecisionLog<D, OP> where D: ApplicationData,
         }
     }
 
+    /// Assemble a decision log from a vector of proofs
     pub fn from_proofs(mut proofs: Vec<SerProof<D, OP>>) -> Self {
 
         proofs.sort_by(|a, b| a.sequence_number().cmp(&b.sequence_number()).reverse());
@@ -61,10 +62,8 @@ impl<D, OP> DecisionLog<D, OP> where D: ApplicationData,
 
     //TODO: Maybe make these data structures a BTreeSet so that the messages are always ordered
     //By their seq no? That way we cannot go wrong in the ordering of messages.
-    pub(crate) fn finished_quorum_execution(&mut self, completed_batch: &SerProof<D, OP>, seq_no: SeqNo, f: usize) -> Result<()> {
+    pub(crate) fn finished_quorum_execution(&mut self, proof: &SerProof<D, OP>, seq_no: SeqNo) -> Result<()> {
         self.last_exec.replace(seq_no);
-
-        let proof = completed_batch.proof(Some(f))?;
 
         self.decided.push(proof);
 

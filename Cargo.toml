@@ -1,0 +1,11 @@
+[package]
+name = "Atlas-Decision-Log"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+atlas-common = { path = "../Atlas-Common" }
+atlas-core = { path = "../Atlas-Core" }
+atlas-smr-application = {path = "../Atlas-SMR-Application"}

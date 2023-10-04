@@ -8,5 +8,7 @@ edition = "2021"
 [dependencies]
 atlas-common = { path = "../Atlas-Common" }
 atlas-core = { path = "../Atlas-Core" }
-atlas-smr-application = {path = "../Atlas-SMR-Application"}
+atlas-smr-application = { path = "../Atlas-SMR-Application" }
 either = "*"
+log = "0.4.20"
+atlas-communication = { path = "../Atlas-Communication" }

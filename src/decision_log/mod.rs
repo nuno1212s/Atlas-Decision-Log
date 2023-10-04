@@ -4,6 +4,7 @@ use atlas_core::ordering_protocol::networking::serialize::{OrderingProtocolMessa
 use atlas_core::ordering_protocol::loggable::{LoggableOrderProtocol, PersistentOrderProtocolTypes, PProof};
 use atlas_smr_application::serialize::ApplicationData;
 
+#[derive(Clone)]
 pub struct DecisionLog<D, OP, POP> where D: ApplicationData,
                                          OP: OrderingProtocolMessage<D>,
                                          POP: PersistentOrderProtocolTypes<D, OP> {
@@ -33,7 +34,16 @@ impl<D, OP, POP> DecisionLog<D, OP, POP> where D: ApplicationData,
     pub fn from_proofs(mut proofs: Vec<PProof<D, OP, POP>>) -> Self {
         proofs.sort_by(|a, b| a.sequence_number().cmp(&b.sequence_number()).reverse());
 
-        let last_decided = proofs.first().map(|proof| proof.sequence_number());
+        let last_decided = proofs.last().map(|proof| proof.sequence_number());
+
+        Self {
+            last_exec: last_decided,
+            decided: proofs,
+        }
+    }
+
+    pub fn from_ordered_proofs(proofs: Vec<PProof<D, OP, POP>>) -> Self {
+        let last_decided = proofs.last().map(|proof| proof.sequence_number());
 
         Self {
             last_exec: last_decided,
@@ -94,5 +104,9 @@ impl<D, OP, POP> DecisionLog<D, OP, POP> where D: ApplicationData,
         self.decided.reverse();
 
         decided_request_count
+    }
+
+    pub(crate) fn into_proofs(self) -> Vec<PProof<D, OP, POP>> {
+        self.decided
     }
 }

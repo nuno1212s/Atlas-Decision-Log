@@ -3,23 +3,13 @@ use either::Either;
 use atlas_common::ordering::{InvalidSeqNo, SeqNo};
 use atlas_core::ordering_protocol::DecisionMetadata;
 use atlas_core::smr::smr_decision_log::StoredConsensusMessage;
+use atlas_smr_application::app::UpdateBatch;
+use atlas_smr_application::serialize::ApplicationData;
+use crate::decisions::OnGoingDecision;
 
-/// A struct to store the ongoing decision known parameters
-pub struct OnGoingDecision<D, OP, POP> {
-    // The seq number of this decision
-    seq: SeqNo,
-
-    completed: bool,
-
-    // The metadata of the decision, optional since it's usually the
-    metadata: Option<DecisionMetadata<D, OP>>,
-
-    // The messages that compose this decision, to be transformed into a given proof
-    messages: Vec<StoredConsensusMessage<D, OP, POP>>,
-}
 
 /// The log for decisions which are currently being decided
-pub struct DecidingLog<D, OP, POP> {
+pub struct DecidingLog<D, OP, POP> where D: ApplicationData {
     // The seq no of the first decision in the queue
     curr_seq: SeqNo,
 
@@ -28,7 +18,8 @@ pub struct DecidingLog<D, OP, POP> {
     currently_deciding: VecDeque<OnGoingDecision<D, OP, POP>>,
 }
 
-impl<D, OP, POP> DecidingLog<D, OP, POP> {
+impl<D, OP, POP> DecidingLog<D, OP, POP>
+    where D: ApplicationData {
     pub fn init(default_capacity: usize, starting_seq: SeqNo) -> Self {
         Self {
             curr_seq: starting_seq,
@@ -54,11 +45,10 @@ impl<D, OP, POP> DecidingLog<D, OP, POP> {
     }
 
     fn decision_at_index(&mut self, index: usize) -> &mut OnGoingDecision<D, OP, POP> {
-
         if self.currently_deciding.len() > index {
             self.currently_deciding.get_mut(index).unwrap()
         } else {
-             let to_create = (self.currently_deciding.len() - index) + 1;
+            let to_create = (self.currently_deciding.len() - index) + 1;
 
             let mut start_seq = self.currently_deciding.back()
                 .map(|decision| decision.seq_no().next())
@@ -87,7 +77,7 @@ impl<D, OP, POP> DecidingLog<D, OP, POP> {
         }
     }
 
-    pub fn complete_decision(&mut self, seq: SeqNo, metadata: DecisionMetadata<D, OP>) {
+    pub fn decision_metadata(&mut self, seq: SeqNo, metadata: DecisionMetadata<D, OP>) {
         let index = seq.index(self.curr_seq);
 
         match index {
@@ -95,7 +85,21 @@ impl<D, OP, POP> DecidingLog<D, OP, POP> {
                 let decision = self.decision_at_index(index);
 
                 decision.insert_metadata(metadata);
+            }
+            Either::Left(_) => {
+                unreachable!("Completing decision that has already been decided")
+            }
+        }
+    }
 
+    pub fn complete_decision(&mut self, seq: SeqNo, requests: UpdateBatch<D::Request>) {
+        let index = seq.index(self.curr_seq);
+
+        match index {
+            Either::Right(index) => {
+                let decision = self.decision_at_index(index);
+
+                decision.insert_requests(requests);
                 decision.completed();
             }
             Either::Left(_) => {
@@ -120,40 +124,5 @@ impl<D, OP, POP> DecidingLog<D, OP, POP> {
         }
 
         decisions
-    }
-}
-
-impl<D, OP, POP> OnGoingDecision<D, OP, POP> {
-    fn init(seq: SeqNo) -> Self {
-        Self {
-            seq,
-            completed: false,
-            metadata: None,
-            messages: vec![],
-        }
-    }
-
-    fn seq_no(&self )-> SeqNo {
-        self.seq
-    }
-
-    fn insert_metadata(&mut self, metadata: DecisionMetadata<D, OP>) {
-        let _ = self.metadata.insert(metadata);
-    }
-
-    fn insert_component_message(&mut self, partial: StoredConsensusMessage<D, OP, POP>) {
-        self.messages.push(partial)
-    }
-
-    fn completed(&mut self) {
-        self.completed = true;
-    }
-
-    fn is_completed(&self) -> bool {
-        self.completed
-    }
-
-    pub fn into_components(self) -> (DecisionMetadata<D, OP>, Vec<StoredConsensusMessage<D, OP, POP>>) {
-        (self.metadata, self.messages)
     }
 }

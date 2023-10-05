@@ -1,102 +1,82 @@
 use atlas_common::ordering::{Orderable, SeqNo};
-use atlas_core::ordering_protocol::networking::serialize::{OrderingProtocolMessage, OrderProtocolProof};
-use atlas_core::ordering_protocol::SerProof;
-use atlas_common::error::*;
+use atlas_core::messages::ClientRqInfo;
+use atlas_core::ordering_protocol::{DecisionMetadata, ProtocolConsensusDecision};
+use atlas_core::smr::smr_decision_log::StoredConsensusMessage;
+use atlas_smr_application::app::UpdateBatch;
 use atlas_smr_application::serialize::ApplicationData;
 
-pub struct DecisionLog<D, OP> where D: ApplicationData,
-                                    OP: OrderingProtocolMessage<D> {
-
-    last_exec: Option<SeqNo>,
-    decided: Vec<SerProof<D, OP>>
+/// A struct to store the ongoing decision known parameters
+pub struct OnGoingDecision<D, OP> where D: ApplicationData {
+    // The seq number of this decision
+    seq: SeqNo,
+    // Whether this decision has been marked as completed by the ordering protocol
+    completed: bool,
+    // The metadata of the decision, optional since it's usually the
+    metadata: Option<DecisionMetadata<D, OP>>,
+    // The messages that compose this decision, to be transformed into a given proof
+    messages: Vec<StoredConsensusMessage<D, OP>>,
+    // The decision information from the ordering protocol
+    protocol_decision: Option<ProtocolConsensusDecision<D::Request>>
 }
 
-impl<D, OP> DecisionLog<D, OP> where D: ApplicationData,
-                                     OP: OrderingProtocolMessage<D> {
-
-    pub fn new() -> Self {
-        Self {
-            last_exec: None,
-            decided: vec![],
-        }
-    }
-
-    /// Initialize a decision log from a given vector of proofs
-    pub fn from_decided(last_exec: SeqNo, proofs: Vec<SerProof<D, OP>>) -> Self {
-        Self {
-            last_exec: Some(last_exec),
-            decided: proofs,
-        }
-    }
-
-    /// Assemble a decision log from a vector of proofs
-    pub fn from_proofs(mut proofs: Vec<SerProof<D, OP>>) -> Self {
-
-        proofs.sort_by(|a, b| a.sequence_number().cmp(&b.sequence_number()).reverse());
-
-        let last_decided = proofs.first().map(|proof| proof.sequence_number());
-
-        Self {
-            last_exec: last_decided,
-            decided: proofs,
-        }
-    }
-
-    /// Returns the sequence number of the last executed batch of client
-    /// requests, assigned by the conesensus layer.
-    pub fn last_execution(&self) -> Option<SeqNo> {
-        self.last_exec
-    }
-
-    /// Get all of the decided proofs in this decisionn log
-    pub fn proofs(&self) -> &[SerProof<D, OP>] {
-        &self.decided[..]
-    }
-
-    /// Append a proof to the end of the log. Assumes all prior checks have been done
-    pub(crate) fn append_proof(&mut self, proof: SerProof<D, OP>) {
-        self.last_exec = Some(proof.seq_no());
-
-        self.decided.push(proof);
-    }
-
-    //TODO: Maybe make these data structures a BTreeSet so that the messages are always ordered
-    //By their seq no? That way we cannot go wrong in the ordering of messages.
-    pub(crate) fn finished_quorum_execution(&mut self, proof: &SerProof<D, OP>, seq_no: SeqNo) -> Result<()> {
-        self.last_exec.replace(seq_no);
-
-        self.decided.push(proof);
-
-        Ok(())
-    }
-
-    /// Returns the proof of the last executed consensus
-    /// instance registered in this `DecisionLog`.
-    pub fn last_decision(&self) -> Option<SerProof<D, OP>> {
-        self.decided.last().map(|p| (*p).clone())
-    }
-
-    /// Clear the decision log until the given sequence number
-    pub(crate) fn clear_until_seq(&mut self, seq_no: SeqNo) -> usize {
-        let mut net_decided = Vec::with_capacity(self.decided.len());
-
-        let mut decided_request_count = 0;
-
-        let prev_decided = std::mem::replace(&mut self.decided, net_decided);
-
-        for proof in prev_decided.into_iter().rev() {
-            if proof.sequence_number() <= seq_no {
-
-                decided_request_count += proof.contained_messages();
-
-            } else {
-                self.decided.push(proof);
-            }
-        }
-
-        self.decided.reverse();
-
-        decided_request_count
-    }
-
+/// The completed decision object with all necessary information to be transformed
+/// into a proof, which will be put into the decision log
+pub struct CompletedDecision<D, OP> where D: ApplicationData {
+    seq: SeqNo,
+    metadata: DecisionMetadata<D, OP>,
+    messages: Vec<StoredConsensusMessage<D, OP>>,
+    protocol_decision: ProtocolConsensusDecision<D::Request>
 }
+
+impl<D, OP> Orderable for OnGoingDecision<D, OP> where D: ApplicationData {
+    fn sequence_number(&self) -> SeqNo {
+        self.seq
+    }
+}
+
+impl<D, OP> OnGoingDecision<D, OP> where D: ApplicationData {
+    pub fn init(seq: SeqNo) -> Self {
+        Self {
+            seq,
+            completed: false,
+            metadata: None,
+            messages: vec![],
+            protocol_decision: None
+        }
+    }
+
+    pub fn insert_metadata(&mut self, metadata: DecisionMetadata<D, OP>) {
+        let _ = self.metadata.insert(metadata);
+    }
+
+    pub fn insert_component_message(&mut self, partial: StoredConsensusMessage<D, OP>) {
+        self.messages.push(partial)
+    }
+
+    pub fn insert_requests(&mut self, protocol_decision: ProtocolConsensusDecision<D::Request>) {
+        self.protocol_decision = Some(protocol_decision)
+    }
+
+    pub fn completed(&mut self) {
+        self.completed = true;
+    }
+
+    pub  fn is_completed(&self) -> bool {
+        self.completed
+    }
+
+    pub fn into_components(self) -> (DecisionMetadata<D, OP>, Vec<StoredConsensusMessage<D, OP>>) {
+        (self.metadata, self.messages)
+    }
+
+    pub fn into_completed_decision(self) -> CompletedDecision<D, OP> {
+        CompletedDecision {
+            seq: self.seq,
+            metadata: self.metadata.unwrap(),
+            messages: self.messages,
+            protocol_decision: self.protocol_decision.unwrap(),
+        }
+    }
+}
+
+

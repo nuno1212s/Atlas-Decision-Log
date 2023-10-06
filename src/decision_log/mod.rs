@@ -1,7 +1,9 @@
-use atlas_common::ordering::{Orderable, SeqNo};
+use either::Either;
+use atlas_common::ordering::{InvalidSeqNo, Orderable, SeqNo};
 use atlas_common::error::*;
 use atlas_core::ordering_protocol::networking::serialize::{OrderingProtocolMessage, OrderProtocolProof};
 use atlas_core::ordering_protocol::loggable::{LoggableOrderProtocol, PersistentOrderProtocolTypes, PProof};
+use atlas_core::smr::networking::serialize::OrderProtocolLog;
 use atlas_smr_application::serialize::ApplicationData;
 
 #[derive(Clone)]
@@ -81,6 +83,28 @@ impl<D, OP, POP> DecisionLog<D, OP, POP> where D: ApplicationData,
         Ok(())
     }
 
+    /// Get a proof of a given sequence number
+    pub(crate) fn get_proof(&self, seq: SeqNo) -> Option<PProof<D, OP, POP>> {
+
+        if let Some(first_seq) = self.first_seq() {
+            match seq.index(first_seq) {
+                Either::Left(_) => {
+                    None
+                }
+                Either::Right(index) => {
+                    if index < self.decided.len() {
+                        Some(self.decided[index].clone())
+                    } else {
+                        None
+                    }
+                }
+            }
+        } else {
+            None
+        }
+
+    }
+
     /// Returns the proof of the last executed consensus
     /// instance registered in this `DecisionLog`.
     pub fn last_decision(&self) -> Option<PProof<D, OP, POP>> {
@@ -116,5 +140,17 @@ impl<D, OP, POP> DecisionLog<D, OP, POP> where D: ApplicationData,
 
     pub(crate) fn into_proofs(self) -> Vec<PProof<D, OP, POP>> {
         self.decided
+    }
+}
+
+impl<D, OP, POP> Orderable for DecisionLog<D, OP, POP> {
+    fn sequence_number(&self) -> SeqNo {
+        self.last_exec.unwrap_or(SeqNo::ZERO)
+    }
+}
+
+impl<D, OP, POP> OrderProtocolLog for DecisionLog<D, OP, POP> {
+    fn first_seq(&self) -> Option<SeqNo> {
+        self.decided.first().map(|decided| decided.sequence_number())
     }
 }

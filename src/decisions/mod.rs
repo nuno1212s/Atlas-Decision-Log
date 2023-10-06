@@ -1,7 +1,7 @@
 use atlas_common::ordering::{Orderable, SeqNo};
 use atlas_core::messages::ClientRqInfo;
 use atlas_core::ordering_protocol::{DecisionMetadata, ProtocolConsensusDecision};
-use atlas_core::smr::smr_decision_log::StoredConsensusMessage;
+use atlas_core::smr::smr_decision_log::{LoggingDecision, StoredConsensusMessage};
 use atlas_smr_application::app::UpdateBatch;
 use atlas_smr_application::serialize::ApplicationData;
 
@@ -16,7 +16,12 @@ pub struct OnGoingDecision<D, OP> where D: ApplicationData {
     // The messages that compose this decision, to be transformed into a given proof
     messages: Vec<StoredConsensusMessage<D, OP>>,
     // The decision information from the ordering protocol
-    protocol_decision: Option<ProtocolConsensusDecision<D::Request>>
+    protocol_decision: Option<ProtocolConsensusDecision<D::Request>>,
+    // The information about the decision that is being logged.
+    // This is what is going to be used to send to the persistent
+    // Logging layer in order to better control when a given sequence
+    // number is completely persisted
+    logging_decision: LoggingDecision,
 }
 
 /// The completed decision object with all necessary information to be transformed
@@ -25,7 +30,8 @@ pub struct CompletedDecision<D, OP> where D: ApplicationData {
     seq: SeqNo,
     metadata: DecisionMetadata<D, OP>,
     messages: Vec<StoredConsensusMessage<D, OP>>,
-    protocol_decision: ProtocolConsensusDecision<D::Request>
+    protocol_decision: ProtocolConsensusDecision<D::Request>,
+    logged_info: LoggingDecision,
 }
 
 impl<D, OP> Orderable for OnGoingDecision<D, OP> where D: ApplicationData {
@@ -41,7 +47,8 @@ impl<D, OP> OnGoingDecision<D, OP> where D: ApplicationData {
             completed: false,
             metadata: None,
             messages: vec![],
-            protocol_decision: None
+            protocol_decision: None,
+            logging_decision: LoggingDecision::init_empty(seq),
         }
     }
 
@@ -50,7 +57,9 @@ impl<D, OP> OnGoingDecision<D, OP> where D: ApplicationData {
     }
 
     pub fn insert_component_message(&mut self, partial: StoredConsensusMessage<D, OP>) {
-        self.messages.push(partial)
+        self.logging_decision.insert_message(&partial);
+
+        self.messages.push(partial);
     }
 
     pub fn insert_requests(&mut self, protocol_decision: ProtocolConsensusDecision<D::Request>) {
@@ -61,7 +70,7 @@ impl<D, OP> OnGoingDecision<D, OP> where D: ApplicationData {
         self.completed = true;
     }
 
-    pub  fn is_completed(&self) -> bool {
+    pub fn is_completed(&self) -> bool {
         self.completed
     }
 
@@ -75,6 +84,7 @@ impl<D, OP> OnGoingDecision<D, OP> where D: ApplicationData {
             metadata: self.metadata.unwrap(),
             messages: self.messages,
             protocol_decision: self.protocol_decision.unwrap(),
+            logged_info: self.logging_decision,
         }
     }
 }

@@ -9,21 +9,25 @@ use crate::decisions::{CompletedDecision, OnGoingDecision};
 
 
 /// The log for decisions which are currently being decided
-pub struct DecidingLog<D, OP, POP> where D: ApplicationData {
+pub struct DecidingLog<D, OP, PL> where D: ApplicationData {
     // The seq no of the first decision in the queue
     curr_seq: SeqNo,
 
     // The currently deciding list. This is a vec deque since we can only decide seqno n when
     // all seqno < n have already been decided
-    currently_deciding: VecDeque<OnGoingDecision<D, OP, POP>>,
+    currently_deciding: VecDeque<OnGoingDecision<D, OP>>,
+
+    // A reference to the persistent log so we can immediately begin the storage process
+    persistent_log: PL,
 }
 
-impl<D, OP, POP> DecidingLog<D, OP, POP>
+impl<D, OP, PL> DecidingLog<D, OP, PL>
     where D: ApplicationData {
-    pub fn init(default_capacity: usize, starting_seq: SeqNo) -> Self {
+    pub fn init(default_capacity: usize, starting_seq: SeqNo, persistent_log: PL) -> Self {
         Self {
             curr_seq: starting_seq,
             currently_deciding: VecDeque::with_capacity(default_capacity),
+            persistent_log,
         }
     }
 
@@ -44,7 +48,30 @@ impl<D, OP, POP> DecidingLog<D, OP, POP>
         }
     }
 
-    fn decision_at_index(&mut self, index: usize) -> &mut OnGoingDecision<D, OP, POP> {
+    /// Advance to the given sequence number, ignoring all of the decisions until then
+    pub fn advance_to_seq(&mut self, seq: SeqNo) {
+        match seq.index(self.curr_seq) {
+            Either::Left(_) | Either::Right(0) => {
+                unreachable!("How can we advance to a sequence number we are already at?")
+            }
+            Either::Right(index) => {
+
+                for _ in 0..index {
+                    self.currently_deciding.pop_front();
+                }
+
+            }
+        }
+
+        self.curr_seq = seq;
+    }
+    
+    pub fn reset_to_zero(&mut self) {
+        self.curr_seq = SeqNo::ZERO;
+        self.currently_deciding.clear();
+    }
+
+    fn decision_at_index(&mut self, index: usize) -> &mut OnGoingDecision<D, OP> {
         if self.currently_deciding.len() > index {
             self.currently_deciding.get_mut(index).unwrap()
         } else {

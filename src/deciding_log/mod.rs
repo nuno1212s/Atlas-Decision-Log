@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use either::Either;
 use atlas_common::ordering::{InvalidSeqNo, SeqNo};
 use atlas_core::ordering_protocol::{DecisionMetadata, ProtocolConsensusDecision};
-use atlas_core::smr::smr_decision_log::StoredConsensusMessage;
+use atlas_core::smr::smr_decision_log::ShareableConsensusMessage;
 use atlas_smr_application::app::UpdateBatch;
 use atlas_smr_application::serialize::ApplicationData;
 use crate::decisions::{CompletedDecision, OnGoingDecision};
@@ -91,7 +91,7 @@ impl<D, OP, PL> DecidingLog<D, OP, PL>
         }
     }
 
-    pub fn decision_progressed(&mut self, seq: SeqNo, message: StoredConsensusMessage<D, OP>) {
+    pub fn decision_progressed(&mut self, seq: SeqNo, message: ShareableConsensusMessage<D, OP>) {
         let index = seq.index(self.curr_seq);
 
         match index {

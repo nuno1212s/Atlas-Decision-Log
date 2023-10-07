@@ -1,7 +1,7 @@
 use atlas_common::ordering::{Orderable, SeqNo};
 use atlas_core::messages::ClientRqInfo;
 use atlas_core::ordering_protocol::{DecisionMetadata, ProtocolConsensusDecision};
-use atlas_core::smr::smr_decision_log::{LoggingDecision, StoredConsensusMessage};
+use atlas_core::smr::smr_decision_log::{LoggingDecision, ShareableConsensusMessage};
 use atlas_smr_application::app::UpdateBatch;
 use atlas_smr_application::serialize::ApplicationData;
 
@@ -14,7 +14,7 @@ pub struct OnGoingDecision<D, OP> where D: ApplicationData {
     // The metadata of the decision, optional since it's usually the
     metadata: Option<DecisionMetadata<D, OP>>,
     // The messages that compose this decision, to be transformed into a given proof
-    messages: Vec<StoredConsensusMessage<D, OP>>,
+    messages: Vec<ShareableConsensusMessage<D, OP>>,
     // The decision information from the ordering protocol
     protocol_decision: Option<ProtocolConsensusDecision<D::Request>>,
     // The information about the decision that is being logged.
@@ -29,7 +29,7 @@ pub struct OnGoingDecision<D, OP> where D: ApplicationData {
 pub struct CompletedDecision<D, OP> where D: ApplicationData {
     seq: SeqNo,
     metadata: DecisionMetadata<D, OP>,
-    messages: Vec<StoredConsensusMessage<D, OP>>,
+    messages: Vec<ShareableConsensusMessage<D, OP>>,
     protocol_decision: ProtocolConsensusDecision<D::Request>,
     logged_info: LoggingDecision,
 }
@@ -56,7 +56,7 @@ impl<D, OP> OnGoingDecision<D, OP> where D: ApplicationData {
         let _ = self.metadata.insert(metadata);
     }
 
-    pub fn insert_component_message(&mut self, partial: StoredConsensusMessage<D, OP>) {
+    pub fn insert_component_message(&mut self, partial: ShareableConsensusMessage<D, OP>) {
         self.logging_decision.insert_message(&partial);
 
         self.messages.push(partial);
@@ -74,7 +74,7 @@ impl<D, OP> OnGoingDecision<D, OP> where D: ApplicationData {
         self.completed
     }
 
-    pub fn into_components(self) -> (DecisionMetadata<D, OP>, Vec<StoredConsensusMessage<D, OP>>) {
+    pub fn into_components(self) -> (DecisionMetadata<D, OP>, Vec<ShareableConsensusMessage<D, OP>>) {
         (self.metadata, self.messages)
     }
 

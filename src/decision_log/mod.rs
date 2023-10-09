@@ -1,7 +1,9 @@
-use atlas_common::ordering::{Orderable, SeqNo};
+use either::Either;
+use atlas_common::ordering::{InvalidSeqNo, Orderable, SeqNo};
 use atlas_common::error::*;
 use atlas_core::ordering_protocol::networking::serialize::{OrderingProtocolMessage, OrderProtocolProof};
 use atlas_core::ordering_protocol::loggable::{LoggableOrderProtocol, PersistentOrderProtocolTypes, PProof};
+use atlas_core::smr::networking::serialize::OrderProtocolLog;
 use atlas_smr_application::serialize::ApplicationData;
 
 #[derive(Clone)]
@@ -63,10 +65,12 @@ impl<D, OP, POP> DecisionLog<D, OP, POP> where D: ApplicationData,
     }
 
     /// Append a proof to the end of the log. Assumes all prior checks have been done
-    pub(crate) fn append_proof(&mut self, proof: PProof<D, OP, POP>) {
+    pub(crate) fn append_proof(&mut self, proof: PProof<D, OP, POP>) -> Result<()> {
         self.last_exec = Some(proof.seq_no());
 
         self.decided.push(proof);
+
+        Ok(())
     }
 
     //TODO: Maybe make these data structures a BTreeSet so that the messages are always ordered
@@ -74,15 +78,43 @@ impl<D, OP, POP> DecisionLog<D, OP, POP> where D: ApplicationData,
     pub(crate) fn finished_quorum_execution(&mut self, proof: &PProof<D, OP, POP>, seq_no: SeqNo) -> Result<()> {
         self.last_exec.replace(seq_no);
 
-        self.decided.push(proof);
+        self.decided.push(proof.clone());
 
         Ok(())
+    }
+
+    /// Get a proof of a given sequence number
+    pub(crate) fn get_proof(&self, seq: SeqNo) -> Option<PProof<D, OP, POP>> {
+
+        if let Some(first_seq) = self.first_seq() {
+            match seq.index(first_seq) {
+                Either::Left(_) => {
+                    None
+                }
+                Either::Right(index) => {
+                    if index < self.decided.len() {
+                        Some(self.decided[index].clone())
+                    } else {
+                        None
+                    }
+                }
+            }
+        } else {
+            None
+        }
+
     }
 
     /// Returns the proof of the last executed consensus
     /// instance registered in this `DecisionLog`.
     pub fn last_decision(&self) -> Option<PProof<D, OP, POP>> {
         self.decided.last().map(|p| (*p).clone())
+    }
+
+    /// Returns a reference to the last executed consensus instance
+    /// in the decision log
+    pub fn last_decision_ref(&self) -> Option<&PProof<D, OP, POP>> {
+        self.decided.last()
     }
 
     /// Clear the decision log until the given sequence number
@@ -108,5 +140,17 @@ impl<D, OP, POP> DecisionLog<D, OP, POP> where D: ApplicationData,
 
     pub(crate) fn into_proofs(self) -> Vec<PProof<D, OP, POP>> {
         self.decided
+    }
+}
+
+impl<D, OP, POP> Orderable for DecisionLog<D, OP, POP> {
+    fn sequence_number(&self) -> SeqNo {
+        self.last_exec.unwrap_or(SeqNo::ZERO)
+    }
+}
+
+impl<D, OP, POP> OrderProtocolLog for DecisionLog<D, OP, POP> {
+    fn first_seq(&self) -> Option<SeqNo> {
+        self.decided.first().map(|decided| decided.sequence_number())
     }
 }

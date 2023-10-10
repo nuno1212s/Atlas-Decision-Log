@@ -11,7 +11,7 @@ use atlas_common::error::*;
 use atlas_common::maybe_vec::MaybeVec;
 use atlas_core::messages::{ClientRqInfo, StoredRequestMessage};
 use atlas_core::ordering_protocol::networking::serialize::OrderingProtocolMessage;
-use atlas_core::ordering_protocol::{Decision, DecisionInfo, DecisionMetadata, OrderingProtocol, ProtocolMessage};
+use atlas_core::ordering_protocol::{Decision, DecisionInfo, DecisionMetadata, OrderingProtocol, ProtocolConsensusDecision, ProtocolMessage};
 use atlas_core::ordering_protocol::loggable::{LoggableOrderProtocol, PersistentOrderProtocolTypes, PProof};
 use atlas_core::persistent_log::{OperationMode, PersistentDecisionLog};
 use atlas_core::smr::networking::serialize::OrderProtocolLog;
@@ -116,8 +116,6 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
                         }
                         DecisionInfo::PartialDecisionInformation(messages) => {
                             messages.into_iter().for_each(|message| {
-                                let message = wrap_loggable_message(message);
-
                                 self.deciding_log.decision_progressed(seq, message)?;
                             });
                         }
@@ -158,12 +156,12 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
 
         self.deciding_log.advance_to_seq(self.decision_log.last_execution().unwrap().next());
 
-        let (rq_batch, client_rqs) = OP::get_requests_in_proof(&proof);
+        let protocol_decision = OP::get_requests_in_proof(&proof)?;
 
-        self.execute_decision_from_proofs(vec![(rq_batch, client_rqs)])
+        self.execute_decision_from_proofs(MaybeVec::One(protocol_decision))
     }
 
-    fn install_log(&mut self, order_protocol: &mut OP,
+    fn install_log(&mut self,
                    dec_log: DecLog<D, OP::Serialization, OP::PersistableTypes, Self::LogSerialization>) -> Result<MaybeVec<LoggedDecision<D::Request>>>
         where PL: PersistentDecisionLog<D, OP::Serialization, OP::PersistableTypes, Self::LogSerialization> {
         info!("Installing a decision log with bounds {:?} - {:?}. Current bounds are: {:?} - {:?}", dec_log.first_seq(),
@@ -177,9 +175,9 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
         self.persistent_log.reset_log(OperationMode::NonBlockingSync(None))?;
 
         self.decision_log.proofs().iter().for_each(|proof| {
-            let (p_requests, client_rqs) = OP::get_requests_in_proof(proof);
+            let protocol_decision = OP::get_requests_in_proof(proof)?;
 
-            requests.push((p_requests, client_rqs));
+            requests.push(protocol_decision);
 
             self.persistent_log.write_proof(OperationMode::NonBlockingSync(None), proof.clone())?;
         });
@@ -194,7 +192,7 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
             self.deciding_log.reset_to_zero();
         }
 
-        self.execute_decision_from_proofs(requests)
+        self.execute_decision_from_proofs(MaybeVec::from_many(requests))
     }
 
     fn snapshot_log(&mut self) -> Result<DecLog<D, OP::Serialization, OP::PersistableTypes, Self::LogSerialization>>
@@ -248,12 +246,13 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
 type LSer<D, OP, NT, PL> = <Log<D, OP, NT, PL> as atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL>>::LogSerialization;
 
 impl<D, OP, NT, PL> Log<D, OP, NT, PL> where D: ApplicationData, OP: LoggableOrderProtocol<D, NT>, {
-    fn execute_decision_from_proofs(&mut self, batches: Vec<(UpdateBatch<D::Request>, Vec<ClientRqInfo>)>) -> Result<MaybeVec<LoggedDecision<D::Request>>>
+    fn execute_decision_from_proofs(&mut self, batches: MaybeVec<ProtocolConsensusDecision<D::Request>>) -> Result<MaybeVec<LoggedDecision<D::Request>>>
         where PL: PersistentDecisionLog<D, OP::Serialization, OP::PersistableTypes, LSer<D, OP, NT, PL>> {
         let mut decisions_made = MaybeVec::builder();
 
-        for (update, client_rqs) in batches {
-            let seq = update.sequence_number();
+        for protocol_decision in batches.into_iter() {
+            let (seq, update, client_rqs, batch_digest) = protocol_decision.into();
+
             let logging_info = LoggingDecision::Proof(seq);
 
             if let Some(to_execute) = self.persistent_log.wait_for_full_persistence(update, logging_info)? {

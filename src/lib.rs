@@ -15,7 +15,7 @@ use atlas_core::ordering_protocol::{Decision, DecisionInfo, DecisionMetadata, Or
 use atlas_core::ordering_protocol::loggable::{LoggableOrderProtocol, PersistentOrderProtocolTypes, PProof};
 use atlas_core::persistent_log::{OperationMode, PersistentDecisionLog};
 use atlas_core::smr::networking::serialize::OrderProtocolLog;
-use atlas_core::smr::smr_decision_log::{DecLog, LoggedDecision, LoggingDecision, ShareableConsensusMessage, wrap_loggable_message};
+use atlas_core::smr::smr_decision_log::{DecLog, LoggedDecision, LoggingDecision, ShareableConsensusMessage};
 use atlas_smr_application::app::UpdateBatch;
 use atlas_smr_application::ExecutorHandle;
 use atlas_smr_application::serialize::ApplicationData;

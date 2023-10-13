@@ -59,9 +59,9 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
         };
 
         let deciding = if let Some(seq) = dec_log.last_execution() {
-            DecidingLog::init(config.default_ongoing_capacity, seq.next())
+            DecidingLog::init(config.default_ongoing_capacity, seq.next(), persistent_log.clone())
         } else {
-            DecidingLog::init(config.default_ongoing_capacity, SeqNo::ZERO)
+            DecidingLog::init(config.default_ongoing_capacity, SeqNo::ZERO, persistent_log.clone())
         };
 
         Ok(Log {

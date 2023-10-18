@@ -1,12 +1,16 @@
 use either::Either;
-use atlas_common::ordering::{InvalidSeqNo, Orderable, SeqNo};
+#[cfg(feature = "serialize_serde")]
+use serde::{Deserialize, Serialize};
+
 use atlas_common::error::*;
+use atlas_common::ordering::{Orderable, SeqNo};
+use atlas_core::ordering_protocol::loggable::{PersistentOrderProtocolTypes, PProof};
 use atlas_core::ordering_protocol::networking::serialize::{OrderingProtocolMessage, OrderProtocolProof};
-use atlas_core::ordering_protocol::loggable::{LoggableOrderProtocol, PersistentOrderProtocolTypes, PProof};
 use atlas_core::smr::networking::serialize::OrderProtocolLog;
 use atlas_smr_application::serialize::ApplicationData;
 
 #[derive(Clone)]
+#[cfg_attr(feature = "serialize_serde", derive(Serialize, Deserialize))]
 pub struct DecisionLog<D, OP, POP> where D: ApplicationData,
                                          OP: OrderingProtocolMessage<D>,
                                          POP: PersistentOrderProtocolTypes<D, OP> {
@@ -85,7 +89,6 @@ impl<D, OP, POP> DecisionLog<D, OP, POP> where D: ApplicationData,
 
     /// Get a proof of a given sequence number
     pub(crate) fn get_proof(&self, seq: SeqNo) -> Option<PProof<D, OP, POP>> {
-
         if let Some(first_seq) = self.first_seq() {
             match seq.index(first_seq) {
                 Either::Left(_) => {
@@ -102,7 +105,6 @@ impl<D, OP, POP> DecisionLog<D, OP, POP> where D: ApplicationData,
         } else {
             None
         }
-
     }
 
     /// Returns the proof of the last executed consensus
@@ -143,13 +145,19 @@ impl<D, OP, POP> DecisionLog<D, OP, POP> where D: ApplicationData,
     }
 }
 
-impl<D, OP, POP> Orderable for DecisionLog<D, OP, POP> {
+impl<D, OP, POP> Orderable for DecisionLog<D, OP, POP>
+    where D: ApplicationData,
+          OP: OrderingProtocolMessage<D>,
+          POP: PersistentOrderProtocolTypes<D, OP> {
     fn sequence_number(&self) -> SeqNo {
         self.last_exec.unwrap_or(SeqNo::ZERO)
     }
 }
 
-impl<D, OP, POP> OrderProtocolLog for DecisionLog<D, OP, POP> {
+impl<D, OP, POP> OrderProtocolLog for DecisionLog<D, OP, POP>
+    where D: ApplicationData,
+          OP: OrderingProtocolMessage<D>,
+          POP: PersistentOrderProtocolTypes<D, OP> {
     fn first_seq(&self) -> Option<SeqNo> {
         self.decided.first().map(|decided| decided.sequence_number())
     }

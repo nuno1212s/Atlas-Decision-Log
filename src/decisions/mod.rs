@@ -1,12 +1,15 @@
 use atlas_common::ordering::{Orderable, SeqNo};
 use atlas_core::messages::ClientRqInfo;
 use atlas_core::ordering_protocol::{DecisionMetadata, ProtocolConsensusDecision};
+use atlas_core::ordering_protocol::networking::serialize::OrderingProtocolMessage;
 use atlas_core::smr::smr_decision_log::{LoggingDecision, ShareableConsensusMessage};
 use atlas_smr_application::app::UpdateBatch;
 use atlas_smr_application::serialize::ApplicationData;
 
 /// A struct to store the ongoing decision known parameters
-pub struct OnGoingDecision<D, OP> where D: ApplicationData {
+pub struct OnGoingDecision<D, OP>
+    where D: ApplicationData,
+          OP: OrderingProtocolMessage<D> {
     // The seq number of this decision
     seq: SeqNo,
     // Whether this decision has been marked as completed by the ordering protocol
@@ -26,7 +29,9 @@ pub struct OnGoingDecision<D, OP> where D: ApplicationData {
 
 /// The completed decision object with all necessary information to be transformed
 /// into a proof, which will be put into the decision log
-pub struct CompletedDecision<D, OP> where D: ApplicationData {
+pub struct CompletedDecision<D, OP>
+    where D: ApplicationData,
+          OP: OrderingProtocolMessage<D> {
     seq: SeqNo,
     metadata: DecisionMetadata<D, OP>,
     messages: Vec<ShareableConsensusMessage<D, OP>>,
@@ -34,13 +39,16 @@ pub struct CompletedDecision<D, OP> where D: ApplicationData {
     logged_info: LoggingDecision,
 }
 
-impl<D, OP> Orderable for OnGoingDecision<D, OP> where D: ApplicationData {
+impl<D, OP> Orderable for OnGoingDecision<D, OP>
+    where D: ApplicationData, OP: OrderingProtocolMessage<D> {
     fn sequence_number(&self) -> SeqNo {
         self.seq
     }
 }
 
-impl<D, OP> OnGoingDecision<D, OP> where D: ApplicationData {
+impl<D, OP> OnGoingDecision<D, OP>
+    where D: ApplicationData,
+          OP: OrderingProtocolMessage<D> {
     pub fn init(seq: SeqNo) -> Self {
         Self {
             seq,

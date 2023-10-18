@@ -1,9 +1,13 @@
 [package]
-name = "Atlas-Decision-Log"
+name = "atlas-decision-log"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+serialize_serde = ["serde", "bincode", "atlas-core/serialize_serde", "atlas-smr-application/serialize_serde", "atlas-communication/serialize_serde"]
+serialize_capnp = []
 
 [dependencies]
 atlas-common = { path = "../Atlas-Common" }
@@ -12,3 +16,7 @@ atlas-smr-application = { path = "../Atlas-SMR-Application" }
 either = "*"
 log = "0.4.20"
 atlas-communication = { path = "../Atlas-Communication" }
+
+bincode = { version = "2.0.0-rc.3", features = ["serde"], optional = true }
+
+serde = { version = "1.0", optional = true }

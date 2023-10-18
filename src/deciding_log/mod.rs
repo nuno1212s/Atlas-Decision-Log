@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use either::Either;
 use atlas_common::ordering::{InvalidSeqNo, SeqNo};
 use atlas_core::ordering_protocol::{DecisionMetadata, ProtocolConsensusDecision};
+use atlas_core::ordering_protocol::networking::serialize::OrderingProtocolMessage;
 use atlas_core::smr::smr_decision_log::ShareableConsensusMessage;
 use atlas_smr_application::app::UpdateBatch;
 use atlas_smr_application::serialize::ApplicationData;
@@ -9,7 +10,8 @@ use crate::decisions::{CompletedDecision, OnGoingDecision};
 
 
 /// The log for decisions which are currently being decided
-pub struct DecidingLog<D, OP, PL> where D: ApplicationData {
+pub struct DecidingLog<D, OP, PL>
+    where D: ApplicationData, OP: OrderingProtocolMessage<D> {
     // The seq no of the first decision in the queue
     curr_seq: SeqNo,
 
@@ -22,7 +24,8 @@ pub struct DecidingLog<D, OP, PL> where D: ApplicationData {
 }
 
 impl<D, OP, PL> DecidingLog<D, OP, PL>
-    where D: ApplicationData {
+    where D: ApplicationData,
+          OP: OrderingProtocolMessage<D> {
     pub fn init(default_capacity: usize, starting_seq: SeqNo, persistent_log: PL) -> Self {
         Self {
             curr_seq: starting_seq,
@@ -55,17 +58,15 @@ impl<D, OP, PL> DecidingLog<D, OP, PL>
                 unreachable!("How can we advance to a sequence number we are already at?")
             }
             Either::Right(index) => {
-
                 for _ in 0..index {
                     self.currently_deciding.pop_front();
                 }
-
             }
         }
 
         self.curr_seq = seq;
     }
-    
+
     pub fn reset_to_zero(&mut self) {
         self.curr_seq = SeqNo::ZERO;
         self.currently_deciding.clear();

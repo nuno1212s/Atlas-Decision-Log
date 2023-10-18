@@ -15,7 +15,7 @@ use atlas_core::ordering_protocol::{Decision, DecisionInfo, DecisionMetadata, Or
 use atlas_core::ordering_protocol::loggable::{LoggableOrderProtocol, PersistentOrderProtocolTypes, PProof};
 use atlas_core::persistent_log::{OperationMode, PersistentDecisionLog};
 use atlas_core::smr::networking::serialize::OrderProtocolLog;
-use atlas_core::smr::smr_decision_log::{DecLog, LoggedDecision, LoggingDecision, ShareableConsensusMessage};
+use atlas_core::smr::smr_decision_log::{DecisionLogPersistenceHelper, DecLog, DecLogMetadata, LoggedDecision, LoggingDecision, ShareableConsensusMessage};
 use atlas_smr_application::app::UpdateBatch;
 use atlas_smr_application::ExecutorHandle;
 use atlas_smr_application::serialize::ApplicationData;
@@ -26,10 +26,10 @@ use crate::decisions::CompletedDecision;
 use crate::serialize::LogSerialization;
 
 /// Decision log implementation type
-pub struct Log<D, OP, NT, PL> where D: ApplicationData,
+pub struct Log<D, OP, NT, PL> where D: ApplicationData + 'static,
                                     OP: LoggableOrderProtocol<D, NT>, {
     // The log of decisions that are currently ongoing
-    deciding_log: DecidingLog<D, OP::Serialization, OP::PersistableTypes>,
+    deciding_log: DecidingLog<D, OP::Serialization, PL>,
 
     // The log of decisions that have already been decided since the last checkpoint
     decision_log: DecisionLog<D, OP::Serialization, OP::PersistableTypes>,
@@ -39,14 +39,37 @@ pub struct Log<D, OP, NT, PL> where D: ApplicationData,
     executor_handle: ExecutorHandle<D>,
 }
 
-impl<D, OP, NT, PL> Orderable for Log<D, OP, NT, PL> where D: ApplicationData, OP: LoggableOrderProtocol<D, NT> {
+impl<D, OP, NT, PL> Orderable for Log<D, OP, NT, PL>
+    where D: ApplicationData + 'static,
+          OP: LoggableOrderProtocol<D, NT> {
     fn sequence_number(&self) -> SeqNo {
         self.decision_log.last_execution().unwrap_or(SeqNo::ZERO)
     }
 }
 
+type Ser<D, OP: LoggableOrderProtocol<D, NT>, NT> = LogSerialization<D, OP::Serialization, OP::PersistableTypes>;
+
+impl<D, OP, NT, PL> DecisionLogPersistenceHelper<D, OP::Serialization, OP::PersistableTypes, Ser<D, OP, NT>> for Log<D, OP, NT, PL>
+    where D: ApplicationData + 'static,
+          OP: LoggableOrderProtocol<D, NT>,
+          PL: Send {
+    fn init_decision_log(metadata: DecLogMetadata<D, OP::Serialization, OP::PersistableTypes, Ser<D, OP, NT>>, proofs: Vec<PProof<D, OP::Serialization, OP::PersistableTypes>>) -> DecLog<D, OP::Serialization, OP::PersistableTypes, Ser<D, OP, NT>> {
+        todo!()
+    }
+
+    fn decompose_decision_log(dec_log: DecLog<D, OP::Serialization, OP::PersistableTypes, Ser<D, OP, NT>>) -> (DecLogMetadata<D, OP::Serialization, OP::PersistableTypes, Ser<D, OP, NT>>, Vec<PProof<D, OP::Serialization, OP::PersistableTypes>>) {
+        todo!()
+    }
+
+    fn decompose_decision_log_ref(dec_log: &DecLog<D, OP::Serialization, OP::PersistableTypes, Ser<D, OP, NT>>) -> (&DecLogMetadata<D, OP::Serialization, OP::PersistableTypes, Ser<D, OP, NT>>, Vec<&PProof<D, OP::Serialization, OP::PersistableTypes>>) {
+        todo!()
+    }
+}
+
 impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL> for Log<D, OP, NT, PL>
-    where D: ApplicationData, OP: LoggableOrderProtocol<D, NT> {
+    where D: ApplicationData + 'static,
+          OP: LoggableOrderProtocol<D, NT>,
+          PL: Send {
     type LogSerialization = LogSerialization<D, OP::Serialization, OP::PersistableTypes>;
     type Config = DecLogConfig;
 
@@ -217,20 +240,15 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
     }
 
     fn sequence_number_with_proof(&self) -> Result<Option<(SeqNo, PProof<D, OP::Serialization, OP::PersistableTypes>)>> {
-
         if let Some(decision) = self.decision_log.last_decision() {
-
             Ok(Some((decision.sequence_number(), decision)))
-
         } else {
             Ok(None)
         }
-
     }
 
     fn get_proof(&self, seq: SeqNo) -> Result<Option<PProof<D, OP::Serialization, OP::PersistableTypes>>>
         where PL: PersistentDecisionLog<D, OP::Serialization, OP::PersistableTypes, Self::LogSerialization> {
-
         return if let Some(decision) = self.decision_log.last_execution() {
             if seq > decision {
                 Err(Error::simple_with_msg(ErrorKind::MsgLogDecidedLog, "There is no proof by that sequence number yet."))
@@ -239,15 +257,16 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
             }
         } else {
             Ok(None)
-        }
+        };
     }
 }
 
-type LSer<D, OP, NT, PL> = <Log<D, OP, NT, PL> as atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL>>::LogSerialization;
 
-impl<D, OP, NT, PL> Log<D, OP, NT, PL> where D: ApplicationData, OP: LoggableOrderProtocol<D, NT>, {
+impl<D, OP, NT, PL> Log<D, OP, NT, PL> where D: ApplicationData + 'static,
+                                             OP: LoggableOrderProtocol<D, NT>,
+                                             PL: Send {
     fn execute_decision_from_proofs(&mut self, batches: MaybeVec<ProtocolConsensusDecision<D::Request>>) -> Result<MaybeVec<LoggedDecision<D::Request>>>
-        where PL: PersistentDecisionLog<D, OP::Serialization, OP::PersistableTypes, LSer<D, OP, NT, PL>> {
+        where PL: PersistentDecisionLog<D, OP::Serialization, OP::PersistableTypes, Ser<D, OP, NT>> {
         let mut decisions_made = MaybeVec::builder();
 
         for protocol_decision in batches.into_iter() {
@@ -266,7 +285,7 @@ impl<D, OP, NT, PL> Log<D, OP, NT, PL> where D: ApplicationData, OP: LoggableOrd
     }
 
     fn execute_decisions(&mut self, decisions: Vec<CompletedDecision<D, OP::Serialization>>) -> Result<MaybeVec<LoggedDecision<D::Request>>>
-        where PL: PersistentDecisionLog<D, OP::Serialization, OP::PersistableTypes, LSer<D, OP, NT, PL>> {
+        where PL: PersistentDecisionLog<D, OP::Serialization, OP::PersistableTypes, Ser<D, OP, NT>> {
         let mut decisions_made = MaybeVec::builder();
 
         for decision in decisions {

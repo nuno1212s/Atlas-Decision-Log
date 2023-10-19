@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 use either::Either;
+use log::error;
 use atlas_common::ordering::{InvalidSeqNo, Orderable, SeqNo};
 use atlas_core::ordering_protocol::{DecisionMetadata, ProtocolConsensusDecision};
 use atlas_core::ordering_protocol::networking::serialize::OrderingProtocolMessage;
@@ -73,16 +74,21 @@ impl<D, OP, PL> DecidingLog<D, OP, PL>
     }
 
     fn decision_at_index(&mut self, index: usize) -> &mut OnGoingDecision<D, OP> {
+
+        error!("Currently deciding {}, index {}", self.currently_deciding.len(), index);
+
         if self.currently_deciding.len() > index {
             self.currently_deciding.get_mut(index).unwrap()
         } else {
-            let to_create = (self.currently_deciding.len() - index) + 1;
+            let to_create = (index - self.currently_deciding.len()) + 1;
 
             let mut start_seq = self.currently_deciding.back()
                 .map(|decision| decision.sequence_number().next())
                 .unwrap_or(self.curr_seq);
 
-            for _ in 0..to_create {
+            error!("To create {}", to_create);
+
+            for _ in 0..=to_create {
                 self.currently_deciding.push_back(OnGoingDecision::init(start_seq));
 
                 start_seq = start_seq.next();
@@ -148,6 +154,8 @@ impl<D, OP, PL> DecidingLog<D, OP, PL>
                 decisions.push(decision.into_completed_decision());
 
                 self.curr_seq = self.curr_seq.next();
+            } else {
+                break
             }
         }
 

@@ -5,7 +5,7 @@ pub mod config;
 pub mod serialize;
 
 use either::Either;
-use log::{error, info};
+use log::{debug, error, info};
 use atlas_common::ordering::{InvalidSeqNo, Orderable, SeqNo};
 use atlas_common::error::*;
 use atlas_common::maybe_vec::MaybeVec;
@@ -53,16 +53,23 @@ impl<D, OP, NT, PL> DecisionLogPersistenceHelper<D, OP::Serialization, OP::Persi
     where D: ApplicationData + 'static,
           OP: LoggableOrderProtocol<D, NT>,
           PL: Send {
-    fn init_decision_log(metadata: DecLogMetadata<D, OP::Serialization, OP::PersistableTypes, Ser<D, OP, NT>>, proofs: Vec<PProof<D, OP::Serialization, OP::PersistableTypes>>) -> DecLog<D, OP::Serialization, OP::PersistableTypes, Ser<D, OP, NT>> {
-        todo!()
+    fn init_decision_log(_: (), proofs: Vec<PProof<D, OP::Serialization, OP::PersistableTypes>>) -> Result<DecLog<D, OP::Serialization, OP::PersistableTypes, Ser<D, OP, NT>>> {
+        Ok(DecisionLog::from_ordered_proofs(proofs))
     }
 
-    fn decompose_decision_log(dec_log: DecLog<D, OP::Serialization, OP::PersistableTypes, Ser<D, OP, NT>>) -> (DecLogMetadata<D, OP::Serialization, OP::PersistableTypes, Ser<D, OP, NT>>, Vec<PProof<D, OP::Serialization, OP::PersistableTypes>>) {
-        todo!()
+    fn decompose_decision_log(dec_log: DecisionLog<D, OP::Serialization, OP::PersistableTypes>) -> ((), Vec<PProof<D, OP::Serialization, OP::PersistableTypes>>) {
+        ((), dec_log.into_proofs())
     }
 
-    fn decompose_decision_log_ref(dec_log: &DecLog<D, OP::Serialization, OP::PersistableTypes, Ser<D, OP, NT>>) -> (&DecLogMetadata<D, OP::Serialization, OP::PersistableTypes, Ser<D, OP, NT>>, Vec<&PProof<D, OP::Serialization, OP::PersistableTypes>>) {
-        todo!()
+    fn decompose_decision_log_ref(dec_log: &DecisionLog<D, OP::Serialization, OP::PersistableTypes>) -> (&(), Vec<&PProof<D, OP::Serialization, OP::PersistableTypes>>) {
+
+        let mut proofs = Vec::with_capacity(dec_log.proofs().len());
+
+        for proof in dec_log.proofs() {
+            proofs.push(proof);
+        }
+
+        (&(), proofs)
     }
 }
 
@@ -128,11 +135,13 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
         let index = seq.index(self.decision_log.last_execution().unwrap_or(SeqNo::ZERO));
 
         match index {
-            Either::Left(_) | Either::Right(0) => {
+            Either::Left(_) => {
                 error!("Received decision information about a decision that has already been made");
             }
             Either::Right(index) => {
                 decision_info.into_decision_info().into_iter().for_each(|info| {
+                    debug!("Received information about decision {:?}", info);
+
                     match info {
                         DecisionInfo::DecisionDone(done) => {
                             self.deciding_log.complete_decision(seq, done);
@@ -292,7 +301,7 @@ impl<D, OP, NT, PL> Log<D, OP, NT, PL> where D: ApplicationData + 'static,
             let (seq, metadata, messages,
                 protocol_decision, logged_info) = decision.into();
 
-            let proof = OP::init_proof_from_scm(metadata, messages);
+            let proof = OP::init_proof_from_scm(metadata, messages)?;
 
             self.decision_log.append_proof(proof)?;
 

@@ -196,6 +196,7 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
     fn install_log(&mut self,
                    dec_log: DecLog<D, OP::Serialization, OP::PersistableTypes, Self::LogSerialization>) -> Result<MaybeVec<LoggedDecision<D::Request>>>
         where PL: PersistentDecisionLog<D, OP::Serialization, OP::PersistableTypes, Self::LogSerialization> {
+
         info!("Installing a decision log with bounds {:?} - {:?}. Current bounds are: {:?} - {:?}", dec_log.first_seq(),
             dec_log.last_execution(), self.decision_log.first_seq() ,self.decision_log.last_execution());
 

@@ -135,15 +135,15 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
                 decision_info.into_decision_info().into_iter().for_each(|info| {
                     match info {
                         DecisionInfo::DecisionDone(done) => {
-                            self.deciding_log.complete_decision(seq, done)?;
+                            self.deciding_log.complete_decision(seq, done);
                         }
                         DecisionInfo::PartialDecisionInformation(messages) => {
                             messages.into_iter().for_each(|message| {
-                                self.deciding_log.decision_progressed(seq, message)?;
+                                self.deciding_log.decision_progressed(seq, message);
                             });
                         }
                         DecisionInfo::DecisionMetadata(metadata) => {
-                            self.deciding_log.decision_metadata(seq, metadata)?;
+                            self.deciding_log.decision_metadata(seq, metadata);
                         }
                     }
                 });
@@ -175,11 +175,11 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
             self.decision_log.append_proof(proof.clone())?;
         }
 
+        let protocol_decision = OP::get_requests_in_proof(&proof)?;
+
         self.persistent_log.write_proof(OperationMode::NonBlockingSync(None), proof)?;
 
         self.deciding_log.advance_to_seq(self.decision_log.last_execution().unwrap().next());
-
-        let protocol_decision = OP::get_requests_in_proof(&proof)?;
 
         self.execute_decision_from_proofs(MaybeVec::One(protocol_decision))
     }
@@ -197,13 +197,13 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
         // reset the stored log as we are going to receive
         self.persistent_log.reset_log(OperationMode::NonBlockingSync(None))?;
 
-        self.decision_log.proofs().iter().for_each(|proof| {
+        for proof in self.decision_log.proofs() {
             let protocol_decision = OP::get_requests_in_proof(proof)?;
 
             requests.push(protocol_decision);
 
             self.persistent_log.write_proof(OperationMode::NonBlockingSync(None), proof.clone())?;
-        });
+        }
 
         let last_decision = self.decision_log.last_execution();
 
@@ -289,10 +289,8 @@ impl<D, OP, NT, PL> Log<D, OP, NT, PL> where D: ApplicationData + 'static,
         let mut decisions_made = MaybeVec::builder();
 
         for decision in decisions {
-            let CompletedDecision {
-                seq, metadata, messages,
-                protocol_decision, logged_info,
-            } = decision;
+            let (seq, metadata, messages,
+                protocol_decision, logged_info) = decision.into();
 
             let proof = OP::init_proof_from_scm(metadata, messages);
 

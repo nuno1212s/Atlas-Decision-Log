@@ -9,8 +9,9 @@ use atlas_core::ordering_protocol::networking::serialize::{OrderingProtocolMessa
 use atlas_core::smr::networking::serialize::OrderProtocolLog;
 use atlas_smr_application::serialize::ApplicationData;
 
-#[derive(Clone)]
 #[cfg_attr(feature = "serialize_serde", derive(Serialize, Deserialize))]
+// Checkout https://serde.rs/attr-bound.html as to why we are using this
+#[serde(bound = "")]
 pub struct DecisionLog<D, OP, POP> where D: ApplicationData,
                                          OP: OrderingProtocolMessage<D>,
                                          POP: PersistentOrderProtocolTypes<D, OP> {
@@ -70,7 +71,7 @@ impl<D, OP, POP> DecisionLog<D, OP, POP> where D: ApplicationData,
 
     /// Append a proof to the end of the log. Assumes all prior checks have been done
     pub(crate) fn append_proof(&mut self, proof: PProof<D, OP, POP>) -> Result<()> {
-        self.last_exec = Some(proof.seq_no());
+        self.last_exec = Some(proof.sequence_number());
 
         self.decided.push(proof);
 
@@ -160,5 +161,17 @@ impl<D, OP, POP> OrderProtocolLog for DecisionLog<D, OP, POP>
           POP: PersistentOrderProtocolTypes<D, OP> {
     fn first_seq(&self) -> Option<SeqNo> {
         self.decided.first().map(|decided| decided.sequence_number())
+    }
+}
+
+impl<D, OP, POP> Clone for DecisionLog<D, OP, POP>
+    where D: ApplicationData,
+          OP: OrderingProtocolMessage<D>,
+          POP: PersistentOrderProtocolTypes<D, OP> {
+    fn clone(&self) -> Self {
+        DecisionLog {
+            last_exec: self.last_exec.clone(),
+            decided: self.decided.clone(),
+        }
     }
 }

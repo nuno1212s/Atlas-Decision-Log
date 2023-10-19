@@ -1,9 +1,7 @@
 use atlas_common::ordering::{Orderable, SeqNo};
-use atlas_core::messages::ClientRqInfo;
 use atlas_core::ordering_protocol::{DecisionMetadata, ProtocolConsensusDecision};
 use atlas_core::ordering_protocol::networking::serialize::OrderingProtocolMessage;
 use atlas_core::smr::smr_decision_log::{LoggingDecision, ShareableConsensusMessage};
-use atlas_smr_application::app::UpdateBatch;
 use atlas_smr_application::serialize::ApplicationData;
 
 /// A struct to store the ongoing decision known parameters
@@ -65,7 +63,7 @@ impl<D, OP> OnGoingDecision<D, OP>
     }
 
     pub fn insert_component_message(&mut self, partial: ShareableConsensusMessage<D, OP>) {
-        self.logging_decision.insert_message(&partial);
+        self.logging_decision.insert_message::<D, OP>(&partial);
 
         self.messages.push(partial);
     }
@@ -82,10 +80,6 @@ impl<D, OP> OnGoingDecision<D, OP>
         self.completed
     }
 
-    pub fn into_components(self) -> (DecisionMetadata<D, OP>, Vec<ShareableConsensusMessage<D, OP>>) {
-        (self.metadata, self.messages)
-    }
-
     pub fn into_completed_decision(self) -> CompletedDecision<D, OP> {
         CompletedDecision {
             seq: self.seq,
@@ -97,4 +91,14 @@ impl<D, OP> OnGoingDecision<D, OP>
     }
 }
 
+impl<D, OP> CompletedDecision<D, OP>
+    where D: ApplicationData,
+          OP: OrderingProtocolMessage<D> {
+    pub fn into(self) -> (SeqNo, DecisionMetadata<D, OP>,
+                          Vec<ShareableConsensusMessage<D, OP>>,
+                          ProtocolConsensusDecision<D::Request>,
+                          LoggingDecision) {
+        (self.seq, self.metadata, self.messages, self.protocol_decision, self.logged_info)
+    }
+}
 

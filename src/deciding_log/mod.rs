@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use either::Either;
-use atlas_common::ordering::{InvalidSeqNo, SeqNo};
+use atlas_common::ordering::{InvalidSeqNo, Orderable, SeqNo};
 use atlas_core::ordering_protocol::{DecisionMetadata, ProtocolConsensusDecision};
 use atlas_core::ordering_protocol::networking::serialize::OrderingProtocolMessage;
 use atlas_core::smr::smr_decision_log::ShareableConsensusMessage;
@@ -79,7 +79,7 @@ impl<D, OP, PL> DecidingLog<D, OP, PL>
             let to_create = (self.currently_deciding.len() - index) + 1;
 
             let mut start_seq = self.currently_deciding.back()
-                .map(|decision| decision.seq_no().next())
+                .map(|decision| decision.sequence_number().next())
                 .unwrap_or(self.curr_seq);
 
             for _ in 0..to_create {

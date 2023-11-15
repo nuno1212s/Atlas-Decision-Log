@@ -74,9 +74,6 @@ impl<D, OP, PL> DecidingLog<D, OP, PL>
     }
 
     fn decision_at_index(&mut self, index: usize) -> &mut OnGoingDecision<D, OP> {
-
-        error!("Currently deciding {}, index {}", self.currently_deciding.len(), index);
-
         if self.currently_deciding.len() > index {
             self.currently_deciding.get_mut(index).unwrap()
         } else {
@@ -85,8 +82,6 @@ impl<D, OP, PL> DecidingLog<D, OP, PL>
             let mut start_seq = self.currently_deciding.back()
                 .map(|decision| decision.sequence_number().next())
                 .unwrap_or(self.curr_seq);
-
-            error!("To create {}", to_create);
 
             for _ in 0..=to_create {
                 self.currently_deciding.push_back(OnGoingDecision::init(start_seq));

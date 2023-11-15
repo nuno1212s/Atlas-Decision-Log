@@ -146,8 +146,9 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
                 error!("Received decision information about a decision that has already been made");
             }
             Either::Right(index) => {
+                debug!("Received information about decision {:?}", decision_info);
+
                 decision_info.into_decision_info().into_iter().for_each(|info| {
-                    debug!("Received information about decision {:?}", info);
 
                     match info {
                         DecisionInfo::DecisionDone(done) => {
@@ -168,7 +169,11 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
 
         let decisions = self.deciding_log.complete_pending_decisions();
 
-        Ok(self.execute_decisions(decisions)?)
+        if decisions.is_empty() {
+            Ok(MaybeVec::None)
+        } else {
+            Ok(self.execute_decisions(decisions)?)
+        }
     }
 
     fn install_proof(&mut self, proof: PProof<D, OP::Serialization, OP::PersistableTypes>) -> Result<MaybeVec<LoggedDecision<D::Request>>>

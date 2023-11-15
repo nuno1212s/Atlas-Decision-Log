@@ -15,7 +15,7 @@ use atlas_core::ordering_protocol::{Decision, DecisionInfo, DecisionMetadata, Or
 use atlas_core::ordering_protocol::loggable::{LoggableOrderProtocol, PersistentOrderProtocolTypes, PProof};
 use atlas_core::persistent_log::{OperationMode, PersistentDecisionLog};
 use atlas_core::smr::networking::serialize::OrderProtocolLog;
-use atlas_core::smr::smr_decision_log::{DecisionLogPersistenceHelper, DecLog, DecLogMetadata, LoggedDecision, LoggingDecision, ShareableConsensusMessage};
+use atlas_core::smr::smr_decision_log::{DecisionLogPersistenceHelper, DecLog, DecLogMetadata, LoggedDecision, LoggingDecision, RangeOrderable, ShareableConsensusMessage};
 use atlas_smr_application::app::UpdateBatch;
 use atlas_smr_application::ExecutorHandle;
 use atlas_smr_application::serialize::ApplicationData;
@@ -47,6 +47,14 @@ impl<D, OP, NT, PL> Orderable for Log<D, OP, NT, PL>
     }
 }
 
+impl<D, OP, NT, PL> RangeOrderable for Log<D, OP, NT, PL>
+    where D: ApplicationData + 'static,
+          OP: LoggableOrderProtocol<D, NT> {
+    fn first_sequence(&self) -> SeqNo {
+        self.decision_log.first_seq().unwrap_or(SeqNo::ZERO)
+    }
+}
+
 type Ser<D, OP: LoggableOrderProtocol<D, NT>, NT> = LogSerialization<D, OP::Serialization, OP::PersistableTypes>;
 
 impl<D, OP, NT, PL> DecisionLogPersistenceHelper<D, OP::Serialization, OP::PersistableTypes, Ser<D, OP, NT>> for Log<D, OP, NT, PL>
@@ -62,7 +70,6 @@ impl<D, OP, NT, PL> DecisionLogPersistenceHelper<D, OP::Serialization, OP::Persi
     }
 
     fn decompose_decision_log_ref(dec_log: &DecisionLog<D, OP::Serialization, OP::PersistableTypes>) -> (&(), Vec<&PProof<D, OP::Serialization, OP::PersistableTypes>>) {
-
         let mut proofs = Vec::with_capacity(dec_log.proofs().len());
 
         for proof in dec_log.proofs() {
@@ -196,7 +203,6 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
     fn install_log(&mut self,
                    dec_log: DecLog<D, OP::Serialization, OP::PersistableTypes, Self::LogSerialization>) -> Result<MaybeVec<LoggedDecision<D::Request>>>
         where PL: PersistentDecisionLog<D, OP::Serialization, OP::PersistableTypes, Self::LogSerialization> {
-
         info!("Installing a decision log with bounds {:?} - {:?}. Current bounds are: {:?} - {:?}", dec_log.first_seq(),
             dec_log.last_execution(), self.decision_log.first_seq() ,self.decision_log.last_execution());
 
@@ -296,6 +302,8 @@ impl<D, OP, NT, PL> Log<D, OP, NT, PL> where D: ApplicationData + 'static,
 
     fn execute_decisions(&mut self, decisions: Vec<CompletedDecision<D, OP::Serialization>>) -> Result<MaybeVec<LoggedDecision<D::Request>>>
         where PL: PersistentDecisionLog<D, OP::Serialization, OP::PersistableTypes, Ser<D, OP, NT>> {
+        debug!("Sending {} decisions to be executed by the executor", decisions.len());
+
         let mut decisions_made = MaybeVec::builder();
 
         for decision in decisions {

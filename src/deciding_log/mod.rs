@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use either::Either;
-use log::error;
+use log::{error, warn};
 use atlas_common::ordering::{InvalidSeqNo, Orderable, SeqNo};
 use atlas_core::ordering_protocol::{DecisionMetadata, ProtocolConsensusDecision};
 use atlas_core::ordering_protocol::networking::serialize::OrderingProtocolMessage;
@@ -44,10 +44,12 @@ impl<D, OP, PL> DecidingLog<D, OP, PL>
 
         match index {
             Either::Right(index) => {
-                for i in index..self.currently_deciding.len() {}
+                for i in index..self.currently_deciding.len() {
+                    todo!()
+                }
             }
             Either::Left(_) => {
-                unreachable!("Progressed decision that has already been decided?")
+                warn!("Progressed decision that has already been decided?")
             }
         }
     }
@@ -56,7 +58,9 @@ impl<D, OP, PL> DecidingLog<D, OP, PL>
     pub fn advance_to_seq(&mut self, seq: SeqNo) {
         match seq.index(self.curr_seq) {
             Either::Left(_) | Either::Right(0) => {
-                unreachable!("How can we advance to a sequence number we are already at?")
+                warn!("How can we advance to a sequence number we are already at?");
+
+                return;
             }
             Either::Right(index) => {
                 for _ in 0..index {
@@ -101,7 +105,7 @@ impl<D, OP, PL> DecidingLog<D, OP, PL>
                 self.decision_at_index(index).insert_component_message(message);
             }
             Either::Left(_) => {
-                unreachable!("Progressed decision that has already been decided?")
+                warn!("Progressed decision that has already been decided?")
             }
         }
     }
@@ -116,7 +120,7 @@ impl<D, OP, PL> DecidingLog<D, OP, PL>
                 decision.insert_metadata(metadata);
             }
             Either::Left(_) => {
-                unreachable!("Completing decision that has already been decided")
+                warn!("Completing decision that has already been decided")
             }
         }
     }
@@ -132,7 +136,7 @@ impl<D, OP, PL> DecidingLog<D, OP, PL>
                 decision.completed();
             }
             Either::Left(_) => {
-                unreachable!("Completing decision that has already been decided")
+                warn!("Completing decision that has already been decided")
             }
         }
     }

@@ -257,7 +257,14 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
     }
 
     fn verify_sequence_number(&self, seq_no: SeqNo, proof: &PProof<D, OP::Serialization, OP::PersistableTypes>) -> Result<bool> {
-        todo!()
+
+        if seq_no != proof.sequence_number() {
+            return Ok(false);
+        }
+
+        //TODO:
+
+        Ok(true)
     }
 
     fn sequence_number_with_proof(&self) -> Result<Option<(SeqNo, PProof<D, OP::Serialization, OP::PersistableTypes>)>> {

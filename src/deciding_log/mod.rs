@@ -14,6 +14,7 @@ use crate::decisions::{CompletedDecision, OnGoingDecision};
 pub struct DecidingLog<D, OP, PL>
     where D: ApplicationData, OP: OrderingProtocolMessage<D> {
     // The seq no of the first decision in the queue
+    // Therefore it is the sequence number of the first decision we are working on
     curr_seq: SeqNo,
 
     // The currently deciding list. This is a vec deque since we can only decide seqno n when
@@ -36,7 +37,16 @@ impl<D, OP, PL> DecidingLog<D, OP, PL>
     }
 
     pub fn clear_decision_at(&mut self, seq: SeqNo) {
-        todo!()
+        let index = seq.index(self.curr_seq);
+
+        match index {
+            Either::Left(_) => {
+                warn!("Attempted to clear decision which has already been decided")
+            }
+            Either::Right(index) => {
+                self.currently_deciding[index] = OnGoingDecision::init(seq);
+            }
+        }
     }
 
     pub fn clear_seq_forward_of(&mut self, seq: SeqNo) {
@@ -44,8 +54,10 @@ impl<D, OP, PL> DecidingLog<D, OP, PL>
 
         match index {
             Either::Right(index) => {
-                for i in index..self.currently_deciding.len() {
-                    todo!()
+                let to_remove = self.currently_deciding.len() - index;
+
+                for _ in 0..to_remove {
+                    self.currently_deciding.pop_back();
                 }
             }
             Either::Left(_) => {

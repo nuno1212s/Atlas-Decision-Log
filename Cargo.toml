@@ -10,6 +10,8 @@ serialize_serde = ["serde", "bincode", "atlas-core/serialize_serde", "atlas-smr-
 serialize_capnp = []
 
 [dependencies]
+anyhow = "1.0.75"
+thiserror = "1.0.50"
 atlas-common = { path = "../Atlas-Common" }
 atlas-core = { path = "../Atlas-Core" }
 atlas-smr-application = { path = "../Atlas-SMR-Application" }

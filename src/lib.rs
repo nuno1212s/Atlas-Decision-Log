@@ -6,6 +6,8 @@ pub mod serialize;
 
 use either::Either;
 use log::{debug, error, info};
+use thiserror::Error;
+use atlas_common::Err;
 use atlas_common::ordering::{InvalidSeqNo, Orderable, SeqNo};
 use atlas_common::error::*;
 use atlas_common::maybe_vec::MaybeVec;
@@ -149,7 +151,6 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
                 debug!("Received information about decision {:?}", decision_info);
 
                 decision_info.into_decision_info().into_iter().for_each(|info| {
-
                     match info {
                         DecisionInfo::DecisionDone(done) => {
                             self.deciding_log.complete_decision(seq, done);
@@ -181,15 +182,13 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
         if let Some(decision) = self.decision_log.last_decision_ref() {
             match proof.sequence_number().index(decision.sequence_number()) {
                 Either::Left(_) | Either::Right(0) => {
-                    return Err(Error::simple_with_msg(ErrorKind::MsgLogDecidedLog,
-                                                      "Already have decision at that seq no"));
+                    return Err!(DecisionLogError::AlreadyExistsProof(proof.sequence_number()));
                 }
                 Either::Right(1) => {
                     self.decision_log.append_proof(proof.clone())?;
                 }
                 Either::Right(_) => {
-                    return Err(Error::simple_with_msg(ErrorKind::MsgLogDecidedLog,
-                                                      "Decision that was attempted to append is ahead of our stored decisions"));
+                    return Err!(DecisionLogError::AttemptedDecisionIsAhead(proof.sequence_number()));
                 }
             }
         } else {
@@ -257,7 +256,6 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
     }
 
     fn verify_sequence_number(&self, seq_no: SeqNo, proof: &PProof<D, OP::Serialization, OP::PersistableTypes>) -> Result<bool> {
-
         if seq_no != proof.sequence_number() {
             return Ok(false);
         }
@@ -279,7 +277,7 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
         where PL: PersistentDecisionLog<D, OP::Serialization, OP::PersistableTypes, Self::LogSerialization> {
         return if let Some(decision) = self.decision_log.last_execution() {
             if seq > decision {
-                Err(Error::simple_with_msg(ErrorKind::MsgLogDecidedLog, "There is no proof by that sequence number yet."))
+                Err!(DecisionLogError::NoProofBySeq(seq, decision))
             } else {
                 Ok(self.decision_log.get_proof(seq))
             }
@@ -337,4 +335,14 @@ impl<D, OP, NT, PL> Log<D, OP, NT, PL> where D: ApplicationData + 'static,
 
         Ok(decisions_made.build())
     }
+}
+
+#[derive(Error, Debug)]
+pub enum DecisionLogError {
+    #[error("There is no proof by the seq {0:?}. The last execution was {1:?}")]
+    NoProofBySeq(SeqNo, SeqNo),
+    #[error("There already exists a decision at the sequence number {0:?}")]
+    AlreadyExistsProof(SeqNo),
+    #[error("Decision that was attempted to append is ahead of our stored decisions {0:?}")]
+    AttemptedDecisionIsAhead(SeqNo)
 }

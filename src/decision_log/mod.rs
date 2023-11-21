@@ -12,16 +12,18 @@ use atlas_smr_application::serialize::ApplicationData;
 #[cfg_attr(feature = "serialize_serde", derive(Serialize, Deserialize))]
 // Checkout https://serde.rs/attr-bound.html as to why we are using this
 #[serde(bound = "")]
-pub struct DecisionLog<D, OP, POP> where D: ApplicationData,
-                                         OP: OrderingProtocolMessage<D>,
-                                         POP: PersistentOrderProtocolTypes<D, OP> {
+pub struct DecisionLog<D, OP, POP>
+    where D: ApplicationData,
+          OP: OrderingProtocolMessage<D>,
+          POP: PersistentOrderProtocolTypes<D, OP> {
     last_exec: Option<SeqNo>,
     decided: Vec<PProof<D, OP, POP>>,
 }
 
-impl<D, OP, POP> DecisionLog<D, OP, POP> where D: ApplicationData,
-                                               OP: OrderingProtocolMessage<D>,
-                                               POP: PersistentOrderProtocolTypes<D, OP> {
+impl<D, OP, POP> DecisionLog<D, OP, POP>
+    where D: ApplicationData,
+          OP: OrderingProtocolMessage<D>,
+          POP: PersistentOrderProtocolTypes<D, OP> {
     pub fn new() -> Self {
         Self {
             last_exec: None,

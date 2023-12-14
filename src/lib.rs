@@ -5,7 +5,7 @@ pub mod config;
 pub mod serialize;
 
 use either::Either;
-use log::{debug, error, info};
+use log::{debug, error, info, trace};
 use thiserror::Error;
 use atlas_common::Err;
 use atlas_common::ordering::{InvalidSeqNo, Orderable, SeqNo};
@@ -148,7 +148,7 @@ impl<D, OP, NT, PL> atlas_core::smr::smr_decision_log::DecisionLog<D, OP, NT, PL
                 error!("Received decision information about a decision that has already been made");
             }
             Either::Right(index) => {
-                debug!("Received information about decision {:?}", decision_info);
+                trace!("Received information about decision {:?}", decision_info);
 
                 decision_info.into_decision_info().into_iter().for_each(|info| {
                     match info {

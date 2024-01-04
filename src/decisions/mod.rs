@@ -5,19 +5,18 @@ use atlas_core::smr::smr_decision_log::{LoggingDecision, ShareableConsensusMessa
 use atlas_smr_application::serialize::ApplicationData;
 
 /// A struct to store the ongoing decision known parameters
-pub struct OnGoingDecision<D, OP>
-    where D: ApplicationData,
-          OP: OrderingProtocolMessage<D> {
+pub struct OnGoingDecision<RQ, OP>
+    where OP: OrderingProtocolMessage<RQ> {
     // The seq number of this decision
     seq: SeqNo,
     // Whether this decision has been marked as completed by the ordering protocol
     completed: bool,
     // The metadata of the decision, optional since it's usually the
-    metadata: Option<DecisionMetadata<D, OP>>,
+    metadata: Option<DecisionMetadata<RQ, OP>>,
     // The messages that compose this decision, to be transformed into a given proof
-    messages: Vec<ShareableConsensusMessage<D, OP>>,
+    messages: Vec<ShareableConsensusMessage<RQ, OP>>,
     // The decision information from the ordering protocol
-    protocol_decision: Option<ProtocolConsensusDecision<D::Request>>,
+    protocol_decision: Option<ProtocolConsensusDecision<RQ>>,
     // The information about the decision that is being logged.
     // This is what is going to be used to send to the persistent
     // Logging layer in order to better control when a given sequence
@@ -27,13 +26,12 @@ pub struct OnGoingDecision<D, OP>
 
 /// The completed decision object with all necessary information to be transformed
 /// into a proof, which will be put into the decision log
-pub struct CompletedDecision<D, OP>
-    where D: ApplicationData,
-          OP: OrderingProtocolMessage<D> {
+pub struct CompletedDecision<RQ, OP>
+    where OP: OrderingProtocolMessage<RQ> {
     seq: SeqNo,
-    metadata: DecisionMetadata<D, OP>,
-    messages: Vec<ShareableConsensusMessage<D, OP>>,
-    protocol_decision: ProtocolConsensusDecision<D::Request>,
+    metadata: DecisionMetadata<RQ, OP>,
+    messages: Vec<ShareableConsensusMessage<RQ, OP>>,
+    protocol_decision: ProtocolConsensusDecision<RQ>,
     logged_info: LoggingDecision,
 }
 

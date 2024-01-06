@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use either::Either;
 use log::{error, warn};
 use atlas_common::ordering::{InvalidSeqNo, Orderable, SeqNo};
+use atlas_common::serialization_helper::SerType;
 use atlas_core::ordering_protocol::{DecisionMetadata, ProtocolConsensusDecision};
 use atlas_core::ordering_protocol::networking::serialize::OrderingProtocolMessage;
 use atlas_core::smr::smr_decision_log::ShareableConsensusMessage;
@@ -12,7 +13,7 @@ use crate::decisions::{CompletedDecision, OnGoingDecision};
 
 /// The log for decisions which are currently being decided
 pub struct DecidingLog<RQ, OP, PL>
-    where OP: OrderingProtocolMessage<RQ> {
+    where RQ: SerType, OP: OrderingProtocolMessage<RQ> {
     // The seq no of the first decision in the queue
     // Therefore it is the sequence number of the first decision we are working on
     curr_seq: SeqNo,
@@ -26,7 +27,7 @@ pub struct DecidingLog<RQ, OP, PL>
 }
 
 impl<RQ, OP, PL> DecidingLog<RQ, OP, PL>
-    where OP: OrderingProtocolMessage<RQ> {
+    where RQ: SerType, OP: OrderingProtocolMessage<RQ> {
     pub fn init(default_capacity: usize, starting_seq: SeqNo, persistent_log: PL) -> Self {
         Self {
             curr_seq: starting_seq,
@@ -165,7 +166,7 @@ impl<RQ, OP, PL> DecidingLog<RQ, OP, PL>
 
                 self.curr_seq = self.curr_seq.next();
             } else {
-                break
+                break;
             }
         }
 

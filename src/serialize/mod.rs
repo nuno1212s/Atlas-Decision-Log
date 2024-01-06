@@ -10,6 +10,7 @@ use crate::decision_log::DecisionLog;
 #[cfg(feature = "serialize_serde")]
 use serde::{Deserialize, Serialize};
 use atlas_common::ordering::{Orderable, SeqNo};
+use atlas_common::serialization_helper::SerType;
 
 pub struct LogSerialization<RQ, OP, POP>(PhantomData<fn() -> (RQ, OP, POP)>);
 
@@ -17,24 +18,24 @@ pub struct LogSerialization<RQ, OP, POP>(PhantomData<fn() -> (RQ, OP, POP)>);
 // Checkout https://serde.rs/attr-bound.html as to why we are using this
 #[serde(bound = "")]
 pub struct DecisionLogPart<RQ, OP, POP>(Vec<PProof<RQ, OP, POP>>)
-    where OP: OrderingProtocolMessage<RQ>, POP: PersistentOrderProtocolTypes<RQ, OP>;
+    where RQ: SerType, OP: OrderingProtocolMessage<RQ>, POP: PersistentOrderProtocolTypes<RQ, OP>;
 
 impl<RQ, OP, POP> Orderable for DecisionLogPart<RQ, OP, POP>
-    where OP: OrderingProtocolMessage<RQ>, POP: PersistentOrderProtocolTypes<RQ, OP> {
+    where RQ: SerType, OP: OrderingProtocolMessage<RQ>, POP: PersistentOrderProtocolTypes<RQ, OP> {
     fn sequence_number(&self) -> SeqNo {
         self.0.last().as_ref().map(|proof| proof.sequence_number()).unwrap_or(SeqNo::ZERO)
     }
 }
 
 impl<RQ, OP, POP> OrderProtocolLogPart for DecisionLogPart<RQ, OP, POP>
-    where OP: OrderingProtocolMessage<RQ>, POP: PersistentOrderProtocolTypes<RQ, OP> {
+    where RQ: SerType, OP: OrderingProtocolMessage<RQ>, POP: PersistentOrderProtocolTypes<RQ, OP> {
     fn first_seq(&self) -> Option<SeqNo> {
         self.0.first().as_ref().map(|proof| proof.sequence_number())
     }
 }
 
 impl<RQ, OP, POP> DecisionLogMessage<RQ, OP, POP> for LogSerialization<RQ, OP, POP>
-    where OP: OrderingProtocolMessage<RQ>,
+    where RQ: SerType, OP: OrderingProtocolMessage<RQ>,
           POP: PersistentOrderProtocolTypes<RQ, OP> {
     type DecLogMetadata = ();
     type DecLog = DecisionLog<RQ, OP, POP>;
@@ -58,7 +59,7 @@ impl<RQ, OP, POP> DecisionLogMessage<RQ, OP, POP> for LogSerialization<RQ, OP, P
 }
 
 impl<RQ, OP, POP> Clone for DecisionLogPart<RQ, OP, POP>
-    where OP: OrderingProtocolMessage<RQ>,
+    where RQ: SerType, OP: OrderingProtocolMessage<RQ>,
           POP: PersistentOrderProtocolTypes<RQ, OP> {
     fn clone(&self) -> Self {
         DecisionLogPart(self.0.clone())

@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use atlas_common::error::*;
 use atlas_common::ordering::{Orderable, SeqNo};
+use atlas_common::serialization_helper::SerType;
 use atlas_core::ordering_protocol::loggable::{PersistentOrderProtocolTypes, PProof};
 use atlas_core::ordering_protocol::networking::serialize::{OrderingProtocolMessage, OrderProtocolProof};
 use atlas_core::smr::networking::serialize::OrderProtocolLog;
@@ -13,14 +14,16 @@ use atlas_smr_application::serialize::ApplicationData;
 // Checkout https://serde.rs/attr-bound.html as to why we are using this
 #[serde(bound = "")]
 pub struct DecisionLog<RQ, OP, POP>
-    where OP: OrderingProtocolMessage<RQ>,
+    where RQ: SerType,
+          OP: OrderingProtocolMessage<RQ>,
           POP: PersistentOrderProtocolTypes<RQ, OP> {
     last_exec: Option<SeqNo>,
     decided: Vec<PProof<RQ, OP, POP>>,
 }
 
 impl<RQ, OP, POP> DecisionLog<RQ, OP, POP>
-    where OP: OrderingProtocolMessage<RQ>,
+    where RQ: SerType,
+          OP: OrderingProtocolMessage<RQ>,
           POP: PersistentOrderProtocolTypes<RQ, OP> {
     pub fn new() -> Self {
         Self {
@@ -147,7 +150,8 @@ impl<RQ, OP, POP> DecisionLog<RQ, OP, POP>
 }
 
 impl<RQ, OP, POP> Orderable for DecisionLog<RQ, OP, POP>
-    where OP: OrderingProtocolMessage<RQ>,
+    where RQ: SerType,
+          OP: OrderingProtocolMessage<RQ>,
           POP: PersistentOrderProtocolTypes<RQ, OP> {
     fn sequence_number(&self) -> SeqNo {
         self.last_exec.unwrap_or(SeqNo::ZERO)
@@ -155,7 +159,8 @@ impl<RQ, OP, POP> Orderable for DecisionLog<RQ, OP, POP>
 }
 
 impl<RQ, OP, POP> OrderProtocolLog for DecisionLog<RQ, OP, POP>
-    where OP: OrderingProtocolMessage<RQ>,
+    where RQ: SerType,
+          OP: OrderingProtocolMessage<RQ>,
           POP: PersistentOrderProtocolTypes<RQ, OP> {
     fn first_seq(&self) -> Option<SeqNo> {
         self.decided.first().map(|decided| decided.sequence_number())
@@ -163,7 +168,8 @@ impl<RQ, OP, POP> OrderProtocolLog for DecisionLog<RQ, OP, POP>
 }
 
 impl<RQ, OP, POP> Clone for DecisionLog<RQ, OP, POP>
-    where OP: OrderingProtocolMessage<RQ>,
+    where RQ: SerType,
+          OP: OrderingProtocolMessage<RQ>,
           POP: PersistentOrderProtocolTypes<RQ, OP> {
     fn clone(&self) -> Self {
         DecisionLog {

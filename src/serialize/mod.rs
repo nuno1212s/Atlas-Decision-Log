@@ -4,13 +4,12 @@ use atlas_communication::reconfiguration_node::NetworkInformationProvider;
 use atlas_core::ordering_protocol::loggable::{PersistentOrderProtocolTypes, PProof};
 use atlas_core::ordering_protocol::networking::serialize::OrderingProtocolMessage;
 use atlas_core::ordering_protocol::networking::signature_ver::OrderProtocolSignatureVerificationHelper;
-use atlas_core::smr::networking::serialize::{DecisionLogMessage, OrderProtocolLogPart};
-use atlas_smr_application::serialize::ApplicationData;
 use crate::decision_log::DecisionLog;
 #[cfg(feature = "serialize_serde")]
 use serde::{Deserialize, Serialize};
 use atlas_common::ordering::{Orderable, SeqNo};
 use atlas_common::serialization_helper::SerType;
+use atlas_logging_core::decision_log::serialize::{DecisionLogMessage, OrderProtocolLogPart};
 
 pub struct LogSerialization<RQ, OP, POP>(PhantomData<fn() -> (RQ, OP, POP)>);
 

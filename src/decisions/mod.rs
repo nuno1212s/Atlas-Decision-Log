@@ -1,9 +1,8 @@
 use atlas_common::ordering::{Orderable, SeqNo};
 use atlas_common::serialization_helper::SerType;
-use atlas_core::ordering_protocol::{DecisionMetadata, ProtocolConsensusDecision};
+use atlas_core::ordering_protocol::{DecisionMetadata, ProtocolConsensusDecision, ShareableConsensusMessage};
 use atlas_core::ordering_protocol::networking::serialize::OrderingProtocolMessage;
-use atlas_core::smr::smr_decision_log::{LoggingDecision, ShareableConsensusMessage};
-use atlas_smr_application::serialize::ApplicationData;
+use atlas_logging_core::decision_log::LoggingDecision;
 
 /// A struct to store the ongoing decision known parameters
 pub struct OnGoingDecision<RQ, OP>

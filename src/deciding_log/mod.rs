@@ -3,11 +3,8 @@ use either::Either;
 use log::{error, warn};
 use atlas_common::ordering::{InvalidSeqNo, Orderable, SeqNo};
 use atlas_common::serialization_helper::SerType;
-use atlas_core::ordering_protocol::{DecisionMetadata, ProtocolConsensusDecision};
+use atlas_core::ordering_protocol::{DecisionMetadata, ProtocolConsensusDecision, ShareableConsensusMessage};
 use atlas_core::ordering_protocol::networking::serialize::OrderingProtocolMessage;
-use atlas_core::smr::smr_decision_log::ShareableConsensusMessage;
-use atlas_smr_application::app::UpdateBatch;
-use atlas_smr_application::serialize::ApplicationData;
 use crate::decisions::{CompletedDecision, OnGoingDecision};
 
 

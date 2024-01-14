@@ -7,8 +7,7 @@ use atlas_common::ordering::{Orderable, SeqNo};
 use atlas_common::serialization_helper::SerType;
 use atlas_core::ordering_protocol::loggable::{PersistentOrderProtocolTypes, PProof};
 use atlas_core::ordering_protocol::networking::serialize::{OrderingProtocolMessage, OrderProtocolProof};
-use atlas_core::smr::networking::serialize::OrderProtocolLog;
-use atlas_smr_application::serialize::ApplicationData;
+use atlas_logging_core::decision_log::serialize::OrderProtocolLog;
 
 #[cfg_attr(feature = "serialize_serde", derive(Serialize, Deserialize))]
 // Checkout https://serde.rs/attr-bound.html as to why we are using this

@@ -2,8 +2,7 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 use atlas_communication::reconfiguration_node::NetworkInformationProvider;
 use atlas_core::ordering_protocol::loggable::{PersistentOrderProtocolTypes, PProof};
-use atlas_core::ordering_protocol::networking::serialize::OrderingProtocolMessage;
-use atlas_core::ordering_protocol::networking::signature_ver::OrderProtocolSignatureVerificationHelper;
+use atlas_core::ordering_protocol::networking::serialize::{OrderingProtocolMessage, OrderProtocolVerificationHelper};
 use crate::decision_log::DecisionLog;
 #[cfg(feature = "serialize_serde")]
 use serde::{Deserialize, Serialize};
@@ -44,7 +43,7 @@ impl<RQ, OP, POP> DecisionLogMessage<RQ, OP, POP> for LogSerialization<RQ, OP, P
         where NI: NetworkInformationProvider,
               OP: OrderingProtocolMessage<RQ>,
               POP: PersistentOrderProtocolTypes<RQ, OP>,
-              OPVH: OrderProtocolSignatureVerificationHelper<RQ, OP, NI> {
+              OPVH: OrderProtocolVerificationHelper<RQ, OP, NI> {
         let mut proofs = Vec::with_capacity(dec_log.proofs().len());
 
         for proof in dec_log.into_proofs().into_iter() {

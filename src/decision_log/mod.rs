@@ -4,26 +4,26 @@ use serde::{Deserialize, Serialize};
 
 use atlas_common::error::*;
 use atlas_common::ordering::{Orderable, SeqNo};
+use atlas_common::serialization_helper::SerType;
 use atlas_core::ordering_protocol::loggable::{PersistentOrderProtocolTypes, PProof};
 use atlas_core::ordering_protocol::networking::serialize::{OrderingProtocolMessage, OrderProtocolProof};
-use atlas_core::smr::networking::serialize::OrderProtocolLog;
-use atlas_smr_application::serialize::ApplicationData;
+use atlas_logging_core::decision_log::serialize::OrderProtocolLog;
 
 #[cfg_attr(feature = "serialize_serde", derive(Serialize, Deserialize))]
 // Checkout https://serde.rs/attr-bound.html as to why we are using this
 #[serde(bound = "")]
-pub struct DecisionLog<D, OP, POP>
-    where D: ApplicationData,
-          OP: OrderingProtocolMessage<D>,
-          POP: PersistentOrderProtocolTypes<D, OP> {
+pub struct DecisionLog<RQ, OP, POP>
+    where RQ: SerType,
+          OP: OrderingProtocolMessage<RQ>,
+          POP: PersistentOrderProtocolTypes<RQ, OP> {
     last_exec: Option<SeqNo>,
-    decided: Vec<PProof<D, OP, POP>>,
+    decided: Vec<PProof<RQ, OP, POP>>,
 }
 
-impl<D, OP, POP> DecisionLog<D, OP, POP>
-    where D: ApplicationData,
-          OP: OrderingProtocolMessage<D>,
-          POP: PersistentOrderProtocolTypes<D, OP> {
+impl<RQ, OP, POP> DecisionLog<RQ, OP, POP>
+    where RQ: SerType,
+          OP: OrderingProtocolMessage<RQ>,
+          POP: PersistentOrderProtocolTypes<RQ, OP> {
     pub fn new() -> Self {
         Self {
             last_exec: None,
@@ -32,7 +32,7 @@ impl<D, OP, POP> DecisionLog<D, OP, POP>
     }
 
     /// Initialize a decision log from a given vector of proofs
-    pub fn from_decided(last_exec: SeqNo, proofs: Vec<PProof<D, OP, POP>>) -> Self {
+    pub fn from_decided(last_exec: SeqNo, proofs: Vec<PProof<RQ, OP, POP>>) -> Self {
         Self {
             last_exec: Some(last_exec),
             decided: proofs,
@@ -40,7 +40,7 @@ impl<D, OP, POP> DecisionLog<D, OP, POP>
     }
 
     /// Assemble a decision log from a vector of proofs
-    pub fn from_proofs(mut proofs: Vec<PProof<D, OP, POP>>) -> Self {
+    pub fn from_proofs(mut proofs: Vec<PProof<RQ, OP, POP>>) -> Self {
         proofs.sort_by(|a, b| a.sequence_number().cmp(&b.sequence_number()).reverse());
 
         let last_decided = proofs.last().map(|proof| proof.sequence_number());
@@ -51,7 +51,7 @@ impl<D, OP, POP> DecisionLog<D, OP, POP>
         }
     }
 
-    pub fn from_ordered_proofs(proofs: Vec<PProof<D, OP, POP>>) -> Self {
+    pub fn from_ordered_proofs(proofs: Vec<PProof<RQ, OP, POP>>) -> Self {
         let last_decided = proofs.last().map(|proof| proof.sequence_number());
 
         Self {
@@ -67,12 +67,12 @@ impl<D, OP, POP> DecisionLog<D, OP, POP>
     }
 
     /// Get all of the decided proofs in this decisionn log
-    pub fn proofs(&self) -> &[PProof<D, OP, POP>] {
+    pub fn proofs(&self) -> &[PProof<RQ, OP, POP>] {
         &self.decided[..]
     }
 
     /// Append a proof to the end of the log. Assumes all prior checks have been done
-    pub(crate) fn append_proof(&mut self, proof: PProof<D, OP, POP>) -> Result<()> {
+    pub(crate) fn append_proof(&mut self, proof: PProof<RQ, OP, POP>) -> Result<()> {
         self.last_exec = Some(proof.sequence_number());
 
         self.decided.push(proof);
@@ -82,7 +82,7 @@ impl<D, OP, POP> DecisionLog<D, OP, POP>
 
     //TODO: Maybe make these data structures a BTreeSet so that the messages are always ordered
     //By their seq no? That way we cannot go wrong in the ordering of messages.
-    pub(crate) fn finished_quorum_execution(&mut self, proof: &PProof<D, OP, POP>, seq_no: SeqNo) -> Result<()> {
+    pub(crate) fn finished_quorum_execution(&mut self, proof: &PProof<RQ, OP, POP>, seq_no: SeqNo) -> Result<()> {
         self.last_exec.replace(seq_no);
 
         self.decided.push(proof.clone());
@@ -91,7 +91,7 @@ impl<D, OP, POP> DecisionLog<D, OP, POP>
     }
 
     /// Get a proof of a given sequence number
-    pub(crate) fn get_proof(&self, seq: SeqNo) -> Option<PProof<D, OP, POP>> {
+    pub(crate) fn get_proof(&self, seq: SeqNo) -> Option<PProof<RQ, OP, POP>> {
         if let Some(first_seq) = self.first_seq() {
             match seq.index(first_seq) {
                 Either::Left(_) => {
@@ -112,13 +112,13 @@ impl<D, OP, POP> DecisionLog<D, OP, POP>
 
     /// Returns the proof of the last executed consensus
     /// instance registered in this `DecisionLog`.
-    pub fn last_decision(&self) -> Option<PProof<D, OP, POP>> {
+    pub fn last_decision(&self) -> Option<PProof<RQ, OP, POP>> {
         self.decided.last().map(|p| (*p).clone())
     }
 
     /// Returns a reference to the last executed consensus instance
     /// in the decision log
-    pub fn last_decision_ref(&self) -> Option<&PProof<D, OP, POP>> {
+    pub fn last_decision_ref(&self) -> Option<&PProof<RQ, OP, POP>> {
         self.decided.last()
     }
 
@@ -143,33 +143,33 @@ impl<D, OP, POP> DecisionLog<D, OP, POP>
         decided_request_count
     }
 
-    pub(crate) fn into_proofs(self) -> Vec<PProof<D, OP, POP>> {
+    pub(crate) fn into_proofs(self) -> Vec<PProof<RQ, OP, POP>> {
         self.decided
     }
 }
 
-impl<D, OP, POP> Orderable for DecisionLog<D, OP, POP>
-    where D: ApplicationData,
-          OP: OrderingProtocolMessage<D>,
-          POP: PersistentOrderProtocolTypes<D, OP> {
+impl<RQ, OP, POP> Orderable for DecisionLog<RQ, OP, POP>
+    where RQ: SerType,
+          OP: OrderingProtocolMessage<RQ>,
+          POP: PersistentOrderProtocolTypes<RQ, OP> {
     fn sequence_number(&self) -> SeqNo {
         self.last_exec.unwrap_or(SeqNo::ZERO)
     }
 }
 
-impl<D, OP, POP> OrderProtocolLog for DecisionLog<D, OP, POP>
-    where D: ApplicationData,
-          OP: OrderingProtocolMessage<D>,
-          POP: PersistentOrderProtocolTypes<D, OP> {
+impl<RQ, OP, POP> OrderProtocolLog for DecisionLog<RQ, OP, POP>
+    where RQ: SerType,
+          OP: OrderingProtocolMessage<RQ>,
+          POP: PersistentOrderProtocolTypes<RQ, OP> {
     fn first_seq(&self) -> Option<SeqNo> {
         self.decided.first().map(|decided| decided.sequence_number())
     }
 }
 
-impl<D, OP, POP> Clone for DecisionLog<D, OP, POP>
-    where D: ApplicationData,
-          OP: OrderingProtocolMessage<D>,
-          POP: PersistentOrderProtocolTypes<D, OP> {
+impl<RQ, OP, POP> Clone for DecisionLog<RQ, OP, POP>
+    where RQ: SerType,
+          OP: OrderingProtocolMessage<RQ>,
+          POP: PersistentOrderProtocolTypes<RQ, OP> {
     fn clone(&self) -> Self {
         DecisionLog {
             last_exec: self.last_exec.clone(),

@@ -9,6 +9,8 @@ edition = "2021"
 serialize_serde = ["serde", "bincode", "atlas-core/serialize_serde", "atlas-communication/serialize_serde"]
 serialize_capnp = []
 
+default = ["serialize_serde"]
+
 [dependencies]
 anyhow = "1.0"
 thiserror = "1.0"

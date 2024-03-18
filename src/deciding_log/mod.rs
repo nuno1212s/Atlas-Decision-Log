@@ -1,16 +1,20 @@
-use std::collections::VecDeque;
-use either::Either;
-use log::{error, warn};
+use crate::decisions::{CompletedDecision, OnGoingDecision};
 use atlas_common::ordering::{InvalidSeqNo, Orderable, SeqNo};
 use atlas_common::serialization_helper::SerType;
-use atlas_core::ordering_protocol::{DecisionMetadata, ProtocolConsensusDecision, ShareableConsensusMessage};
 use atlas_core::ordering_protocol::networking::serialize::OrderingProtocolMessage;
-use crate::decisions::{CompletedDecision, OnGoingDecision};
-
+use atlas_core::ordering_protocol::{
+    DecisionMetadata, ProtocolConsensusDecision, ShareableConsensusMessage,
+};
+use either::Either;
+use log::{error, warn};
+use std::collections::VecDeque;
 
 /// The log for decisions which are currently being decided
 pub struct DecidingLog<RQ, OP, PL>
-    where RQ: SerType, OP: OrderingProtocolMessage<RQ> {
+where
+    RQ: SerType,
+    OP: OrderingProtocolMessage<RQ>,
+{
     // The seq no of the first decision in the queue
     // Therefore it is the sequence number of the first decision we are working on
     curr_seq: SeqNo,
@@ -24,7 +28,10 @@ pub struct DecidingLog<RQ, OP, PL>
 }
 
 impl<RQ, OP, PL> DecidingLog<RQ, OP, PL>
-    where RQ: SerType, OP: OrderingProtocolMessage<RQ> {
+where
+    RQ: SerType,
+    OP: OrderingProtocolMessage<RQ>,
+{
     pub fn init(default_capacity: usize, starting_seq: SeqNo, persistent_log: PL) -> Self {
         Self {
             curr_seq: starting_seq,
@@ -92,12 +99,15 @@ impl<RQ, OP, PL> DecidingLog<RQ, OP, PL>
         } else {
             let to_create = (index - self.currently_deciding.len()) + 1;
 
-            let mut start_seq = self.currently_deciding.back()
+            let mut start_seq = self
+                .currently_deciding
+                .back()
                 .map(|decision| decision.sequence_number().next())
                 .unwrap_or(self.curr_seq);
 
             for _ in 0..=to_create {
-                self.currently_deciding.push_back(OnGoingDecision::init(start_seq));
+                self.currently_deciding
+                    .push_back(OnGoingDecision::init(start_seq));
 
                 start_seq = start_seq.next();
             }
@@ -111,7 +121,8 @@ impl<RQ, OP, PL> DecidingLog<RQ, OP, PL>
 
         match index {
             Either::Right(index) => {
-                self.decision_at_index(index).insert_component_message(message);
+                self.decision_at_index(index)
+                    .insert_component_message(message);
             }
             Either::Left(_) => {
                 warn!("Progressed decision that has already been decided?")

@@ -1,12 +1,17 @@
 use atlas_common::ordering::{Orderable, SeqNo};
 use atlas_common::serialization_helper::SerType;
-use atlas_core::ordering_protocol::{DecisionMetadata, ProtocolConsensusDecision, ShareableConsensusMessage};
 use atlas_core::ordering_protocol::networking::serialize::OrderingProtocolMessage;
+use atlas_core::ordering_protocol::{
+    DecisionMetadata, ProtocolConsensusDecision, ShareableConsensusMessage,
+};
 use atlas_logging_core::decision_log::LoggingDecision;
 
 /// A struct to store the ongoing decision known parameters
 pub struct OnGoingDecision<RQ, OP>
-    where RQ: SerType, OP: OrderingProtocolMessage<RQ> {
+where
+    RQ: SerType,
+    OP: OrderingProtocolMessage<RQ>,
+{
     // The seq number of this decision
     seq: SeqNo,
     // Whether this decision has been marked as completed by the ordering protocol
@@ -27,7 +32,10 @@ pub struct OnGoingDecision<RQ, OP>
 /// The completed decision object with all necessary information to be transformed
 /// into a proof, which will be put into the decision log
 pub struct CompletedDecision<RQ, OP>
-    where RQ: SerType, OP: OrderingProtocolMessage<RQ> {
+where
+    RQ: SerType,
+    OP: OrderingProtocolMessage<RQ>,
+{
     seq: SeqNo,
     metadata: DecisionMetadata<RQ, OP>,
     messages: Vec<ShareableConsensusMessage<RQ, OP>>,
@@ -36,15 +44,20 @@ pub struct CompletedDecision<RQ, OP>
 }
 
 impl<RQ, OP> Orderable for OnGoingDecision<RQ, OP>
-    where RQ: SerType, OP: OrderingProtocolMessage<RQ> {
+where
+    RQ: SerType,
+    OP: OrderingProtocolMessage<RQ>,
+{
     fn sequence_number(&self) -> SeqNo {
         self.seq
     }
 }
 
 impl<RQ, OP> OnGoingDecision<RQ, OP>
-    where RQ: SerType,
-          OP: OrderingProtocolMessage<RQ> {
+where
+    RQ: SerType,
+    OP: OrderingProtocolMessage<RQ>,
+{
     pub fn init(seq: SeqNo) -> Self {
         Self {
             seq,
@@ -90,13 +103,25 @@ impl<RQ, OP> OnGoingDecision<RQ, OP>
 }
 
 impl<RQ, OP> CompletedDecision<RQ, OP>
-    where RQ: SerType,
-          OP: OrderingProtocolMessage<RQ> {
-    pub fn into(self) -> (SeqNo, DecisionMetadata<RQ, OP>,
-                          Vec<ShareableConsensusMessage<RQ, OP>>,
-                          ProtocolConsensusDecision<RQ>,
-                          LoggingDecision) {
-        (self.seq, self.metadata, self.messages, self.protocol_decision, self.logged_info)
+where
+    RQ: SerType,
+    OP: OrderingProtocolMessage<RQ>,
+{
+    pub fn into(
+        self,
+    ) -> (
+        SeqNo,
+        DecisionMetadata<RQ, OP>,
+        Vec<ShareableConsensusMessage<RQ, OP>>,
+        ProtocolConsensusDecision<RQ>,
+        LoggingDecision,
+    ) {
+        (
+            self.seq,
+            self.metadata,
+            self.messages,
+            self.protocol_decision,
+            self.logged_info,
+        )
     }
 }
-

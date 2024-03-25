@@ -1,7 +1,9 @@
+use std::sync::atomic::AtomicUsize;
 use either::Either;
 #[cfg(feature = "serialize_serde")]
 use serde::{Deserialize, Serialize};
 
+use rayon::prelude::*;
 use atlas_common::error::*;
 use atlas_common::ordering::{Orderable, SeqNo};
 use atlas_common::serialization_helper::SerType;
@@ -15,20 +17,20 @@ use atlas_logging_core::decision_log::serialize::OrderProtocolLog;
 // Checkout https://serde.rs/attr-bound.html as to why we are using this
 #[serde(bound = "")]
 pub struct DecisionLog<RQ, OP, POP>
-where
-    RQ: SerType,
-    OP: OrderingProtocolMessage<RQ>,
-    POP: PersistentOrderProtocolTypes<RQ, OP>,
+    where
+        RQ: SerType,
+        OP: OrderingProtocolMessage<RQ>,
+        POP: PersistentOrderProtocolTypes<RQ, OP>,
 {
     last_exec: Option<SeqNo>,
     decided: Vec<PProof<RQ, OP, POP>>,
 }
 
 impl<RQ, OP, POP> DecisionLog<RQ, OP, POP>
-where
-    RQ: SerType,
-    OP: OrderingProtocolMessage<RQ>,
-    POP: PersistentOrderProtocolTypes<RQ, OP>,
+    where
+        RQ: SerType,
+        OP: OrderingProtocolMessage<RQ>,
+        POP: PersistentOrderProtocolTypes<RQ, OP>,
 {
     pub fn new() -> Self {
         Self {
@@ -132,23 +134,24 @@ where
 
     /// Clear the decision log until the given sequence number
     pub(crate) fn clear_until_seq(&mut self, seq_no: SeqNo) -> usize {
-        let mut net_decided = Vec::with_capacity(self.decided.len());
+        let net_decided = Vec::new();
 
-        let mut decided_request_count = 0;
+        let mut prev_decided = std::mem::replace(&mut self.decided, net_decided);
 
-        let prev_decided = std::mem::replace(&mut self.decided, net_decided);
-
-        for proof in prev_decided.into_iter().rev() {
-            if proof.sequence_number() <= seq_no {
-                decided_request_count += proof.contained_messages();
+        while let Some(decision) = prev_decided.pop() {
+            if decision.sequence_number() >= seq_no {
+                self.decided.push(decision);
             } else {
-                self.decided.push(proof);
+                break;
             }
         }
 
         self.decided.reverse();
 
-        decided_request_count
+        prev_decided
+            .into_iter()
+            .map(|item| item.contained_messages())
+            .sum()
     }
 
     pub(crate) fn into_proofs(self) -> Vec<PProof<RQ, OP, POP>> {
@@ -157,10 +160,10 @@ where
 }
 
 impl<RQ, OP, POP> Orderable for DecisionLog<RQ, OP, POP>
-where
-    RQ: SerType,
-    OP: OrderingProtocolMessage<RQ>,
-    POP: PersistentOrderProtocolTypes<RQ, OP>,
+    where
+        RQ: SerType,
+        OP: OrderingProtocolMessage<RQ>,
+        POP: PersistentOrderProtocolTypes<RQ, OP>,
 {
     fn sequence_number(&self) -> SeqNo {
         self.last_exec.unwrap_or(SeqNo::ZERO)
@@ -168,10 +171,10 @@ where
 }
 
 impl<RQ, OP, POP> OrderProtocolLog for DecisionLog<RQ, OP, POP>
-where
-    RQ: SerType,
-    OP: OrderingProtocolMessage<RQ>,
-    POP: PersistentOrderProtocolTypes<RQ, OP>,
+    where
+        RQ: SerType,
+        OP: OrderingProtocolMessage<RQ>,
+        POP: PersistentOrderProtocolTypes<RQ, OP>,
 {
     fn first_seq(&self) -> Option<SeqNo> {
         self.decided
@@ -181,10 +184,10 @@ where
 }
 
 impl<RQ, OP, POP> Clone for DecisionLog<RQ, OP, POP>
-where
-    RQ: SerType,
-    OP: OrderingProtocolMessage<RQ>,
-    POP: PersistentOrderProtocolTypes<RQ, OP>,
+    where
+        RQ: SerType,
+        OP: OrderingProtocolMessage<RQ>,
+        POP: PersistentOrderProtocolTypes<RQ, OP>,
 {
     fn clone(&self) -> Self {
         DecisionLog {

@@ -3,7 +3,9 @@ pub mod deciding_log;
 pub mod decision_log;
 pub mod decisions;
 pub mod serialize;
+mod metric;
 
+use std::time::Instant;
 use crate::config::DecLogConfig;
 use crate::deciding_log::DecidingLog;
 use crate::decision_log::DecisionLog;
@@ -33,6 +35,8 @@ use atlas_logging_core::persistent_log::PersistentDecisionLog;
 use either::Either;
 use log::{debug, error, info, trace};
 use thiserror::Error;
+use atlas_metrics::metrics::metric_duration;
+use crate::metric::DECISION_LOG_CHECKPOINT_TIME_ID;
 
 /// Decision log implementation type
 pub struct Log<RQ, OP, PL, EX>
@@ -345,8 +349,12 @@ where {
     }
 
     fn state_checkpoint(&mut self, seq: SeqNo) -> Result<()> {
+        let start = Instant::now();
+        
         let deleted_client_rqs = self.decision_log.clear_until_seq(seq);
 
+        metric_duration(DECISION_LOG_CHECKPOINT_TIME_ID, start.elapsed());
+        
         Ok(())
     }
 

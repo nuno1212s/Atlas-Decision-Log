@@ -15,12 +15,15 @@ default = ["serialize_serde"]
 anyhow = "1.0"
 thiserror = "1.0"
 atlas-common = { path = "../Atlas-Common" }
+atlas-metrics = { path = "../Atlas-Metrics" }
 atlas-core = { path = "../Atlas-Core" }
 atlas-logging-core = { path = "../Atlas-Logging-Core" }
 
 either = "*"
 log = "0.4.20"
 atlas-communication = { path = "../Atlas-Communication" }
+
+rayon = "1"
 
 bincode = { version = "2.0.0-rc.3", features = ["serde"], optional = true }
 

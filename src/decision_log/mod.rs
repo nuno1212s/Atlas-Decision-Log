@@ -1,9 +1,8 @@
-use std::sync::atomic::AtomicUsize;
 use either::Either;
 #[cfg(feature = "serialize_serde")]
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::AtomicUsize;
 
-use rayon::prelude::*;
 use atlas_common::error::*;
 use atlas_common::ordering::{Orderable, SeqNo};
 use atlas_common::serialization_helper::SerType;
@@ -12,25 +11,37 @@ use atlas_core::ordering_protocol::networking::serialize::{
     OrderProtocolProof, OrderingProtocolMessage,
 };
 use atlas_logging_core::decision_log::serialize::OrderProtocolLog;
+use rayon::prelude::*;
 
 #[cfg_attr(feature = "serialize_serde", derive(Serialize, Deserialize))]
 // Checkout https://serde.rs/attr-bound.html as to why we are using this
 #[serde(bound = "")]
 pub struct DecisionLog<RQ, OP, POP>
-    where
-        RQ: SerType,
-        OP: OrderingProtocolMessage<RQ>,
-        POP: PersistentOrderProtocolTypes<RQ, OP>,
+where
+    RQ: SerType,
+    OP: OrderingProtocolMessage<RQ>,
+    POP: PersistentOrderProtocolTypes<RQ, OP>,
 {
     last_exec: Option<SeqNo>,
     decided: Vec<PProof<RQ, OP, POP>>,
 }
 
+impl<RQ, OP, POP> Default for DecisionLog<RQ, OP, POP>
+where
+    RQ: SerType,
+    OP: OrderingProtocolMessage<RQ>,
+    POP: PersistentOrderProtocolTypes<RQ, OP>,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<RQ, OP, POP> DecisionLog<RQ, OP, POP>
-    where
-        RQ: SerType,
-        OP: OrderingProtocolMessage<RQ>,
-        POP: PersistentOrderProtocolTypes<RQ, OP>,
+where
+    RQ: SerType,
+    OP: OrderingProtocolMessage<RQ>,
+    POP: PersistentOrderProtocolTypes<RQ, OP>,
 {
     pub fn new() -> Self {
         Self {
@@ -160,10 +171,10 @@ impl<RQ, OP, POP> DecisionLog<RQ, OP, POP>
 }
 
 impl<RQ, OP, POP> Orderable for DecisionLog<RQ, OP, POP>
-    where
-        RQ: SerType,
-        OP: OrderingProtocolMessage<RQ>,
-        POP: PersistentOrderProtocolTypes<RQ, OP>,
+where
+    RQ: SerType,
+    OP: OrderingProtocolMessage<RQ>,
+    POP: PersistentOrderProtocolTypes<RQ, OP>,
 {
     fn sequence_number(&self) -> SeqNo {
         self.last_exec.unwrap_or(SeqNo::ZERO)
@@ -171,10 +182,10 @@ impl<RQ, OP, POP> Orderable for DecisionLog<RQ, OP, POP>
 }
 
 impl<RQ, OP, POP> OrderProtocolLog for DecisionLog<RQ, OP, POP>
-    where
-        RQ: SerType,
-        OP: OrderingProtocolMessage<RQ>,
-        POP: PersistentOrderProtocolTypes<RQ, OP>,
+where
+    RQ: SerType,
+    OP: OrderingProtocolMessage<RQ>,
+    POP: PersistentOrderProtocolTypes<RQ, OP>,
 {
     fn first_seq(&self) -> Option<SeqNo> {
         self.decided
@@ -184,14 +195,14 @@ impl<RQ, OP, POP> OrderProtocolLog for DecisionLog<RQ, OP, POP>
 }
 
 impl<RQ, OP, POP> Clone for DecisionLog<RQ, OP, POP>
-    where
-        RQ: SerType,
-        OP: OrderingProtocolMessage<RQ>,
-        POP: PersistentOrderProtocolTypes<RQ, OP>,
+where
+    RQ: SerType,
+    OP: OrderingProtocolMessage<RQ>,
+    POP: PersistentOrderProtocolTypes<RQ, OP>,
 {
     fn clone(&self) -> Self {
         DecisionLog {
-            last_exec: self.last_exec.clone(),
+            last_exec: self.last_exec,
             decided: self.decided.clone(),
         }
     }

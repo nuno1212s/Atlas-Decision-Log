@@ -34,9 +34,9 @@ use atlas_logging_core::decision_log::{
 use atlas_logging_core::persistent_log::PersistentDecisionLog;
 use atlas_metrics::metrics::metric_duration;
 use either::Either;
-use log::{debug, error, info, trace};
 use std::time::Instant;
 use thiserror::Error;
+use tracing::{debug, error, info, instrument, trace};
 
 /// Decision log implementation type
 pub struct Log<RQ, OP, PL, EX>
@@ -127,6 +127,7 @@ where
     >,
     EX: Send,
 {
+    #[instrument(skip_all, level = "debug")]
     fn initialize_decision_log(
         config: Self::Config,
         persistent_log: PL,
@@ -187,6 +188,7 @@ where
     type LogSerialization = LogSerialization<RQ, OP::Serialization, OP::PersistableTypes>;
     type Config = DecLogConfig;
 
+    #[instrument(skip(self), level = "debug")]
     fn clear_sequence_number(&mut self, seq: SeqNo) -> Result<()>
 where {
         let last_exec = self.decision_log.last_execution().unwrap_or(SeqNo::ZERO);
@@ -206,12 +208,14 @@ where {
         Ok(())
     }
 
+    #[instrument(skip(self), level = "debug")]
     fn clear_decisions_forward(&mut self, seq: SeqNo) -> Result<()> {
         self.deciding_log.clear_seq_forward_of(seq);
 
         Ok(())
     }
 
+    #[instrument(skip(self), level = "debug")]
     fn decision_information_received(
         &mut self,
         decision_info: Decision<
@@ -259,6 +263,7 @@ where {
         }
     }
 
+    #[instrument(skip(self, proof), level = "debug", fields(seq_no = proof.sequence_number().into_u32()))]
     fn install_proof(
         &mut self,
         proof: PProof<RQ, OP::Serialization, OP::PersistableTypes>,
@@ -294,6 +299,7 @@ where {
         self.execute_decision_from_proofs(MaybeVec::One(protocol_decision))
     }
 
+    #[instrument(skip_all, level = "debug", fields(first_seq = dec_log.first_seq().map(SeqNo::into_u32), last_seq = dec_log.sequence_number().into_u32()))]
     fn install_log(
         &mut self,
         dec_log: DecLog<RQ, OP::Serialization, OP::PersistableTypes, Self::LogSerialization>,
@@ -336,18 +342,21 @@ where {
         self.execute_decision_from_proofs(MaybeVec::from_many(requests))
     }
 
+    #[instrument(skip_all, level = "debug", fields(first_seq = self.decision_log.first_seq().map(SeqNo::into_u32), last_seq = self.decision_log.sequence_number().into_u32()))]
     fn snapshot_log(
         &mut self,
     ) -> Result<DecLog<RQ, OP::Serialization, OP::PersistableTypes, Self::LogSerialization>> {
         Ok(self.decision_log.clone())
     }
 
+    #[instrument(skip_all, level = "debug", fields(first_seq = self.decision_log.first_seq().map(SeqNo::into_u32), last_seq = self.decision_log.sequence_number().into_u32()))]
     fn current_log(
         &self,
     ) -> Result<&DecLog<RQ, OP::Serialization, OP::PersistableTypes, Self::LogSerialization>> {
         Ok(&self.decision_log)
     }
 
+    #[instrument(skip(self), level = "debug")]
     fn state_checkpoint(&mut self, seq: SeqNo) -> Result<()> {
         let start = Instant::now();
 
@@ -358,6 +367,7 @@ where {
         Ok(())
     }
 
+    #[instrument(skip(self, proof), level = "debug", fields(proof_seq_no = proof.sequence_number().into_u32()))]
     fn verify_sequence_number(
         &self,
         seq_no: SeqNo,
@@ -372,6 +382,7 @@ where {
         Ok(true)
     }
 
+    #[instrument(skip_all, level = "debug", fields(current_seq = self.decision_log.sequence_number().into_u32()))]
     fn sequence_number_with_proof(
         &self,
     ) -> Result<Option<(SeqNo, PProof<RQ, OP::Serialization, OP::PersistableTypes>)>> {
@@ -382,6 +393,7 @@ where {
         }
     }
 
+    #[instrument(skip(self), level = "debug")]
     fn get_proof(
         &self,
         seq: SeqNo,
@@ -405,6 +417,7 @@ where
     PL: Send,
     EX: Send,
 {
+    #[instrument(skip_all, fields(batch_count = batches.len()))]
     fn execute_decision_from_proofs(
         &mut self,
         batches: MaybeVec<ProtocolConsensusDecision<RQ>>,
@@ -434,6 +447,7 @@ where
         Ok(decisions_made.build())
     }
 
+    #[instrument(skip_all, fields(batch_count = decisions.len()))]
     fn execute_decisions(
         &mut self,
         decisions: Vec<CompletedDecision<RQ, OP::Serialization>>,

@@ -6,8 +6,8 @@ use atlas_core::ordering_protocol::{
     DecisionMetadata, ProtocolConsensusDecision, ShareableConsensusMessage,
 };
 use either::Either;
-use log::{error, warn};
 use std::collections::VecDeque;
+use tracing::{error, warn};
 
 /// The log for decisions which are currently being decided
 pub struct DecidingLog<RQ, OP, PL>

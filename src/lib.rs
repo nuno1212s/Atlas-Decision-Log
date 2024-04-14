@@ -4,25 +4,25 @@ use either::Either;
 use thiserror::Error;
 use tracing::{debug, error, info, instrument, trace, Level};
 
-use atlas_common::Err;
 use atlas_common::error::*;
 use atlas_common::maybe_vec::MaybeVec;
 use atlas_common::ordering::{InvalidSeqNo, Orderable, SeqNo};
 use atlas_common::serialization_helper::SerType;
+use atlas_common::Err;
 use atlas_core::executor::DecisionExecutorHandle;
+use atlas_core::ordering_protocol::loggable::{
+    LoggableOrderProtocol, PProof, PersistentOrderProtocolTypes,
+};
 use atlas_core::ordering_protocol::{
     Decision, DecisionInfo, DecisionMetadata, OrderingProtocol, ProtocolConsensusDecision,
     ProtocolMessage,
 };
-use atlas_core::ordering_protocol::loggable::{
-    LoggableOrderProtocol, PersistentOrderProtocolTypes, PProof,
-};
 use atlas_core::persistent_log::OperationMode;
+use atlas_logging_core::decision_log::serialize::OrderProtocolLog;
 use atlas_logging_core::decision_log::{
-    DecisionLogInitializer, DecisionLogPersistenceHelper, DecLog, LoggedDecision, LoggingDecision,
+    DecLog, DecisionLogInitializer, DecisionLogPersistenceHelper, LoggedDecision, LoggingDecision,
     RangeOrderable,
 };
-use atlas_logging_core::decision_log::serialize::OrderProtocolLog;
 use atlas_logging_core::persistent_log::PersistentDecisionLog;
 use atlas_metrics::metrics::metric_duration;
 
@@ -42,9 +42,9 @@ pub mod serialize;
 
 /// Decision log implementation type
 pub struct Log<RQ, OP, PL, EX>
-    where
-        RQ: SerType,
-        OP: LoggableOrderProtocol<RQ>,
+where
+    RQ: SerType,
+    OP: LoggableOrderProtocol<RQ>,
 {
     // The log of decisions that are currently ongoing
     deciding_log: DecidingLog<RQ, OP::Serialization, PL>,
@@ -57,9 +57,9 @@ pub struct Log<RQ, OP, PL, EX>
 }
 
 impl<RQ, OP, PL, EX> Orderable for Log<RQ, OP, PL, EX>
-    where
-        RQ: SerType,
-        OP: LoggableOrderProtocol<RQ>,
+where
+    RQ: SerType,
+    OP: LoggableOrderProtocol<RQ>,
 {
     fn sequence_number(&self) -> SeqNo {
         self.decision_log.last_execution().unwrap_or(SeqNo::ZERO)
@@ -67,9 +67,9 @@ impl<RQ, OP, PL, EX> Orderable for Log<RQ, OP, PL, EX>
 }
 
 impl<RQ, OP, PL, EX> RangeOrderable for Log<RQ, OP, PL, EX>
-    where
-        RQ: SerType,
-        OP: LoggableOrderProtocol<RQ>,
+where
+    RQ: SerType,
+    OP: LoggableOrderProtocol<RQ>,
 {
     fn first_sequence(&self) -> SeqNo {
         self.decision_log.first_seq().unwrap_or(SeqNo::ZERO)
@@ -77,16 +77,16 @@ impl<RQ, OP, PL, EX> RangeOrderable for Log<RQ, OP, PL, EX>
 }
 
 type Ser<RQ, OP: LoggableOrderProtocol<RQ>> =
-LogSerialization<RQ, OP::Serialization, OP::PersistableTypes>;
+    LogSerialization<RQ, OP::Serialization, OP::PersistableTypes>;
 
 impl<RQ, OP, PL, EX>
-DecisionLogPersistenceHelper<RQ, OP::Serialization, OP::PersistableTypes, Ser<RQ, OP>>
-for Log<RQ, OP, PL, EX>
-    where
-        RQ: SerType,
-        OP: LoggableOrderProtocol<RQ>,
-        PL: Send,
-        EX: Send,
+    DecisionLogPersistenceHelper<RQ, OP::Serialization, OP::PersistableTypes, Ser<RQ, OP>>
+    for Log<RQ, OP, PL, EX>
+where
+    RQ: SerType,
+    OP: LoggableOrderProtocol<RQ>,
+    PL: Send,
+    EX: Send,
 {
     fn init_decision_log(
         _: (),
@@ -118,16 +118,16 @@ for Log<RQ, OP, PL, EX>
 }
 
 impl<RQ, OP, PL, EX> DecisionLogInitializer<RQ, OP, PL, EX> for Log<RQ, OP, PL, EX>
-    where
-        RQ: SerType + 'static,
-        OP: LoggableOrderProtocol<RQ>,
-        PL: PersistentDecisionLog<
-            RQ,
-            OP::Serialization,
-            OP::PersistableTypes,
-            LogSerialization<RQ, OP::Serialization, OP::PersistableTypes>,
-        >,
-        EX: Send,
+where
+    RQ: SerType + 'static,
+    OP: LoggableOrderProtocol<RQ>,
+    PL: PersistentDecisionLog<
+        RQ,
+        OP::Serialization,
+        OP::PersistableTypes,
+        LogSerialization<RQ, OP::Serialization, OP::PersistableTypes>,
+    >,
+    EX: Send,
 {
     #[instrument(skip_all, level = "debug")]
     fn initialize_decision_log(
@@ -135,15 +135,15 @@ impl<RQ, OP, PL, EX> DecisionLogInitializer<RQ, OP, PL, EX> for Log<RQ, OP, PL, 
         persistent_log: PL,
         executor_handle: EX,
     ) -> Result<Self>
-        where
-            PL: PersistentDecisionLog<
-                RQ,
-                OP::Serialization,
-                OP::PersistableTypes,
-                Self::LogSerialization,
-            >,
-            EX: DecisionExecutorHandle<RQ>,
-            Self: Sized,
+    where
+        PL: PersistentDecisionLog<
+            RQ,
+            OP::Serialization,
+            OP::PersistableTypes,
+            Self::LogSerialization,
+        >,
+        EX: DecisionExecutorHandle<RQ>,
+        Self: Sized,
     {
         let dec_log =
             if let Some(dec_log) = persistent_log.read_decision_log(OperationMode::BlockingSync)? {
@@ -176,23 +176,23 @@ impl<RQ, OP, PL, EX> DecisionLogInitializer<RQ, OP, PL, EX> for Log<RQ, OP, PL, 
 }
 
 impl<RQ, OP, PL, EX> atlas_logging_core::decision_log::DecisionLog<RQ, OP> for Log<RQ, OP, PL, EX>
-    where
-        RQ: SerType + 'static,
-        OP: LoggableOrderProtocol<RQ>,
-        PL: PersistentDecisionLog<
-            RQ,
-            OP::Serialization,
-            OP::PersistableTypes,
-            LogSerialization<RQ, OP::Serialization, OP::PersistableTypes>,
-        >,
-        EX: Send,
+where
+    RQ: SerType + 'static,
+    OP: LoggableOrderProtocol<RQ>,
+    PL: PersistentDecisionLog<
+        RQ,
+        OP::Serialization,
+        OP::PersistableTypes,
+        LogSerialization<RQ, OP::Serialization, OP::PersistableTypes>,
+    >,
+    EX: Send,
 {
     type LogSerialization = LogSerialization<RQ, OP::Serialization, OP::PersistableTypes>;
     type Config = DecLogConfig;
 
     #[instrument(skip(self), level = Level::DEBUG)]
     fn clear_sequence_number(&mut self, seq: SeqNo) -> Result<()>
-        where {
+where {
         let last_exec = self.decision_log.last_execution().unwrap_or(SeqNo::ZERO);
 
         match seq.index(last_exec) {
@@ -413,19 +413,19 @@ impl<RQ, OP, PL, EX> atlas_logging_core::decision_log::DecisionLog<RQ, OP> for L
 }
 
 impl<RQ, OP, PL, EX> Log<RQ, OP, PL, EX>
-    where
-        RQ: SerType,
-        OP: LoggableOrderProtocol<RQ>,
-        PL: Send,
-        EX: Send,
+where
+    RQ: SerType,
+    OP: LoggableOrderProtocol<RQ>,
+    PL: Send,
+    EX: Send,
 {
     #[instrument(skip_all, level = Level::DEBUG, fields(batch_count = batches.len()))]
     fn execute_decision_from_proofs(
         &mut self,
         batches: MaybeVec<ProtocolConsensusDecision<RQ>>,
     ) -> Result<MaybeVec<LoggedDecision<RQ>>>
-        where
-            PL: PersistentDecisionLog<RQ, OP::Serialization, OP::PersistableTypes, Ser<RQ, OP>>,
+    where
+        PL: PersistentDecisionLog<RQ, OP::Serialization, OP::PersistableTypes, Ser<RQ, OP>>,
     {
         let mut decisions_made = MaybeVec::builder();
 
@@ -454,8 +454,8 @@ impl<RQ, OP, PL, EX> Log<RQ, OP, PL, EX>
         &mut self,
         decisions: Vec<CompletedDecision<RQ, OP::Serialization>>,
     ) -> Result<MaybeVec<LoggedDecision<RQ>>>
-        where
-            PL: PersistentDecisionLog<RQ, OP::Serialization, OP::PersistableTypes, Ser<RQ, OP>>,
+    where
+        PL: PersistentDecisionLog<RQ, OP::Serialization, OP::PersistableTypes, Ser<RQ, OP>>,
     {
         debug!(
             "Sending {} decisions to be executed by the executor",

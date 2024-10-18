@@ -234,7 +234,7 @@ where {
             Either::Left(_) => {
                 error!("Received decision information about a decision that has already been made");
             }
-            Either::Right(index) => {
+            Either::Right(_index) => {
                 trace!("Received information about decision {:?}", decision_info);
 
                 decision_info
@@ -362,7 +362,7 @@ where {
     fn state_checkpoint(&mut self, seq: SeqNo) -> Result<()> {
         let start = Instant::now();
 
-        let deleted_client_rqs = self.decision_log.clear_until_seq(seq);
+        let _deleted_client_rqs = self.decision_log.clear_until_seq(seq);
 
         metric_duration(DECISION_LOG_CHECKPOINT_TIME_ID, start.elapsed());
 
@@ -430,7 +430,7 @@ where
         let mut decisions_made = MaybeVec::builder();
 
         for protocol_decision in batches.into_iter() {
-            let (seq, update, client_rqs, batch_digest) = protocol_decision.into();
+            let (seq, update, client_rqs, _batch_digest) = protocol_decision.into();
 
             let logging_info = LoggingDecision::Proof(seq);
 
@@ -465,13 +465,13 @@ where
         let mut decisions_made = MaybeVec::builder();
 
         for decision in decisions {
-            let (seq, metadata, messages, protocol_decision, logged_info) = decision.into();
+            let (_seq, metadata, messages, protocol_decision, logged_info) = decision.into();
 
             let proof = OP::init_proof_from_scm(metadata, messages)?;
 
             self.decision_log.append_proof(proof)?;
 
-            let (seq, batch, client_rqs, batch_digest) = protocol_decision.into();
+            let (seq, batch, client_rqs, _batch_digest) = protocol_decision.into();
 
             if let Some(batch) = self
                 .persistent_log

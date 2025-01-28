@@ -7,15 +7,15 @@ use tracing::{debug, error, info, instrument, trace, Level};
 use atlas_common::error::*;
 use atlas_common::maybe_vec::MaybeVec;
 use atlas_common::ordering::{InvalidSeqNo, Orderable, SeqNo};
-use atlas_common::serialization_helper::SerType;
+use atlas_common::serialization_helper::SerMsg;
 use atlas_common::Err;
 use atlas_core::executor::DecisionExecutorHandle;
 use atlas_core::ordering_protocol::loggable::{
-    LoggableOrderProtocol, PProof, PersistentOrderProtocolTypes,
+    LoggableOrderProtocol, PProof,
 };
 use atlas_core::ordering_protocol::{
-    Decision, DecisionInfo, DecisionMetadata, OrderingProtocol, ProtocolConsensusDecision,
-    ProtocolMessage,
+    Decision, DecisionAD, DecisionInfo, DecisionMetadata, OrderingProtocol,
+    ProtocolConsensusDecision, ProtocolMessage,
 };
 use atlas_core::persistent_log::OperationMode;
 use atlas_logging_core::decision_log::serialize::OrderProtocolLog;
@@ -43,7 +43,7 @@ pub mod serialize;
 /// Decision log implementation type
 pub struct Log<RQ, OP, PL, EX>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: LoggableOrderProtocol<RQ>,
 {
     // The log of decisions that are currently ongoing
@@ -58,7 +58,7 @@ where
 
 impl<RQ, OP, PL, EX> Orderable for Log<RQ, OP, PL, EX>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: LoggableOrderProtocol<RQ>,
 {
     fn sequence_number(&self) -> SeqNo {
@@ -68,7 +68,7 @@ where
 
 impl<RQ, OP, PL, EX> RangeOrderable for Log<RQ, OP, PL, EX>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: LoggableOrderProtocol<RQ>,
 {
     fn first_sequence(&self) -> SeqNo {
@@ -83,7 +83,7 @@ impl<RQ, OP, PL, EX>
     DecisionLogPersistenceHelper<RQ, OP::Serialization, OP::PersistableTypes, Ser<RQ, OP>>
     for Log<RQ, OP, PL, EX>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: LoggableOrderProtocol<RQ>,
     PL: Send,
     EX: Send,
@@ -119,7 +119,7 @@ where
 
 impl<RQ, OP, PL, EX> DecisionLogInitializer<RQ, OP, PL, EX> for Log<RQ, OP, PL, EX>
 where
-    RQ: SerType + 'static,
+    RQ: SerMsg + 'static,
     OP: LoggableOrderProtocol<RQ>,
     PL: PersistentDecisionLog<
         RQ,
@@ -177,7 +177,7 @@ where
 
 impl<RQ, OP, PL, EX> atlas_logging_core::decision_log::DecisionLog<RQ, OP> for Log<RQ, OP, PL, EX>
 where
-    RQ: SerType + 'static,
+    RQ: SerMsg + 'static,
     OP: LoggableOrderProtocol<RQ>,
     PL: PersistentDecisionLog<
         RQ,
@@ -222,6 +222,7 @@ where {
         &mut self,
         decision_info: Decision<
             DecisionMetadata<RQ, OP::Serialization>,
+            DecisionAD<RQ, OP::Serialization>,
             ProtocolMessage<RQ, OP::Serialization>,
             RQ,
         >,
@@ -245,6 +246,12 @@ where {
                             self.deciding_log.complete_decision(seq, done);
                         }
                         DecisionInfo::PartialDecisionInformation(messages) => {
+                            let (decisions_ad, messages) = messages.into();
+                            
+                            decisions_ad.into_iter().for_each(|decision_ad| {
+                                self.deciding_log.decision_additional_data(seq, decision_ad);
+                            });
+                            
                             messages.into_iter().for_each(|message| {
                                 self.deciding_log.decision_progressed(seq, message);
                             });
@@ -414,7 +421,7 @@ where {
 
 impl<RQ, OP, PL, EX> Log<RQ, OP, PL, EX>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: LoggableOrderProtocol<RQ>,
     PL: Send,
     EX: Send,
@@ -465,9 +472,10 @@ where
         let mut decisions_made = MaybeVec::builder();
 
         for decision in decisions {
-            let (_seq, metadata, messages, protocol_decision, logged_info) = decision.into();
+            let (_seq, metadata, additional_data, messages, protocol_decision, logged_info) =
+                decision.into();
 
-            let proof = OP::init_proof_from_scm(metadata, messages)?;
+            let proof = OP::init_proof_from_scm(metadata, additional_data, messages)?;
 
             self.decision_log.append_proof(proof)?;
 

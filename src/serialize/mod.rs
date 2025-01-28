@@ -1,8 +1,8 @@
 use crate::decision_log::DecisionLog;
 use atlas_common::ordering::{Orderable, SeqNo};
-use atlas_common::serialization_helper::SerType;
+use atlas_common::serialization_helper::SerMsg;
 use atlas_communication::reconfiguration::NetworkInformationProvider;
-use atlas_core::ordering_protocol::loggable::{PProof, PersistentOrderProtocolTypes};
+use atlas_core::ordering_protocol::loggable::{PProof};
 use atlas_core::ordering_protocol::networking::serialize::{
     OrderProtocolVerificationHelper, OrderingProtocolMessage,
 };
@@ -11,6 +11,7 @@ use atlas_logging_core::decision_log::serialize::{DecisionLogMessage, OrderProto
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::sync::Arc;
+use atlas_core::ordering_protocol::loggable::message::PersistentOrderProtocolTypes;
 
 pub struct LogSerialization<RQ, OP, POP>(PhantomData<fn() -> (RQ, OP, POP)>);
 
@@ -19,13 +20,13 @@ pub struct LogSerialization<RQ, OP, POP>(PhantomData<fn() -> (RQ, OP, POP)>);
 #[serde(bound = "")]
 pub struct DecisionLogPart<RQ, OP, POP>(Vec<PProof<RQ, OP, POP>>)
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: OrderingProtocolMessage<RQ>,
     POP: PersistentOrderProtocolTypes<RQ, OP>;
 
 impl<RQ, OP, POP> Orderable for DecisionLogPart<RQ, OP, POP>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: OrderingProtocolMessage<RQ>,
     POP: PersistentOrderProtocolTypes<RQ, OP>,
 {
@@ -40,7 +41,7 @@ where
 
 impl<RQ, OP, POP> OrderProtocolLogPart for DecisionLogPart<RQ, OP, POP>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: OrderingProtocolMessage<RQ>,
     POP: PersistentOrderProtocolTypes<RQ, OP>,
 {
@@ -51,7 +52,7 @@ where
 
 impl<RQ, OP, POP> DecisionLogMessage<RQ, OP, POP> for LogSerialization<RQ, OP, POP>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: OrderingProtocolMessage<RQ>,
     POP: PersistentOrderProtocolTypes<RQ, OP>,
 {
@@ -83,7 +84,7 @@ where
 
 impl<RQ, OP, POP> Clone for DecisionLogPart<RQ, OP, POP>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: OrderingProtocolMessage<RQ>,
     POP: PersistentOrderProtocolTypes<RQ, OP>,
 {

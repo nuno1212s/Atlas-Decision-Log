@@ -5,20 +5,21 @@ use std::sync::atomic::AtomicUsize;
 
 use atlas_common::error::*;
 use atlas_common::ordering::{Orderable, SeqNo};
-use atlas_common::serialization_helper::SerType;
-use atlas_core::ordering_protocol::loggable::{PProof, PersistentOrderProtocolTypes};
+use atlas_common::serialization_helper::SerMsg;
+use atlas_core::ordering_protocol::loggable::{PProof};
 use atlas_core::ordering_protocol::networking::serialize::{
     OrderProtocolProof, OrderingProtocolMessage,
 };
 use atlas_logging_core::decision_log::serialize::OrderProtocolLog;
 use rayon::prelude::*;
+use atlas_core::ordering_protocol::loggable::message::PersistentOrderProtocolTypes;
 
 #[cfg_attr(feature = "serialize_serde", derive(Serialize, Deserialize))]
 // Checkout https://serde.rs/attr-bound.html as to why we are using this
 #[serde(bound = "")]
 pub struct DecisionLog<RQ, OP, POP>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: OrderingProtocolMessage<RQ>,
     POP: PersistentOrderProtocolTypes<RQ, OP>,
 {
@@ -28,7 +29,7 @@ where
 
 impl<RQ, OP, POP> Default for DecisionLog<RQ, OP, POP>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: OrderingProtocolMessage<RQ>,
     POP: PersistentOrderProtocolTypes<RQ, OP>,
 {
@@ -39,7 +40,7 @@ where
 
 impl<RQ, OP, POP> DecisionLog<RQ, OP, POP>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: OrderingProtocolMessage<RQ>,
     POP: PersistentOrderProtocolTypes<RQ, OP>,
 {
@@ -172,7 +173,7 @@ where
 
 impl<RQ, OP, POP> Orderable for DecisionLog<RQ, OP, POP>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: OrderingProtocolMessage<RQ>,
     POP: PersistentOrderProtocolTypes<RQ, OP>,
 {
@@ -183,7 +184,7 @@ where
 
 impl<RQ, OP, POP> OrderProtocolLog for DecisionLog<RQ, OP, POP>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: OrderingProtocolMessage<RQ>,
     POP: PersistentOrderProtocolTypes<RQ, OP>,
 {
@@ -196,7 +197,7 @@ where
 
 impl<RQ, OP, POP> Clone for DecisionLog<RQ, OP, POP>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: OrderingProtocolMessage<RQ>,
     POP: PersistentOrderProtocolTypes<RQ, OP>,
 {

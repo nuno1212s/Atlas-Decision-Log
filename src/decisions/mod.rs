@@ -1,15 +1,13 @@
 use atlas_common::ordering::{Orderable, SeqNo};
-use atlas_common::serialization_helper::SerType;
+use atlas_common::serialization_helper::SerMsg;
 use atlas_core::ordering_protocol::networking::serialize::OrderingProtocolMessage;
-use atlas_core::ordering_protocol::{
-    DecisionMetadata, ProtocolConsensusDecision, ShareableConsensusMessage,
-};
+use atlas_core::ordering_protocol::{DecisionAD, DecisionMetadata, ProtocolConsensusDecision, ShareableConsensusMessage};
 use atlas_logging_core::decision_log::LoggingDecision;
 
 /// A struct to store the ongoing decision known parameters
 pub struct OnGoingDecision<RQ, OP>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: OrderingProtocolMessage<RQ>,
 {
     // The seq number of this decision
@@ -18,6 +16,7 @@ where
     completed: bool,
     // The metadata of the decision, optional since it's usually the
     metadata: Option<DecisionMetadata<RQ, OP>>,
+    additional_data: Vec<DecisionAD<RQ, OP>>,
     // The messages that compose this decision, to be transformed into a given proof
     messages: Vec<ShareableConsensusMessage<RQ, OP>>,
     // The decision information from the ordering protocol
@@ -33,11 +32,12 @@ where
 /// into a proof, which will be put into the decision log
 pub struct CompletedDecision<RQ, OP>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: OrderingProtocolMessage<RQ>,
 {
     seq: SeqNo,
     metadata: DecisionMetadata<RQ, OP>,
+    additional_data: Vec<DecisionAD<RQ, OP>>,
     messages: Vec<ShareableConsensusMessage<RQ, OP>>,
     protocol_decision: ProtocolConsensusDecision<RQ>,
     logged_info: LoggingDecision,
@@ -45,7 +45,7 @@ where
 
 impl<RQ, OP> Orderable for OnGoingDecision<RQ, OP>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: OrderingProtocolMessage<RQ>,
 {
     fn sequence_number(&self) -> SeqNo {
@@ -55,7 +55,7 @@ where
 
 impl<RQ, OP> OnGoingDecision<RQ, OP>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: OrderingProtocolMessage<RQ>,
 {
     pub fn init(seq: SeqNo) -> Self {
@@ -63,6 +63,7 @@ where
             seq,
             completed: false,
             metadata: None,
+            additional_data: vec![],
             messages: vec![],
             protocol_decision: None,
             logging_decision: LoggingDecision::init_empty(seq),
@@ -73,6 +74,10 @@ where
         let _ = self.metadata.insert(metadata);
     }
 
+    pub fn insert_additional_data(&mut self, data: DecisionAD<RQ, OP>) {
+        self.additional_data.push(data);
+    }
+    
     pub fn insert_component_message(&mut self, partial: ShareableConsensusMessage<RQ, OP>) {
         self.logging_decision.insert_message::<RQ, OP>(&partial);
 
@@ -95,6 +100,7 @@ where
         CompletedDecision {
             seq: self.seq,
             metadata: self.metadata.unwrap(),
+            additional_data: self.additional_data,
             messages: self.messages,
             protocol_decision: self.protocol_decision.unwrap(),
             logged_info: self.logging_decision,
@@ -104,7 +110,7 @@ where
 
 impl<RQ, OP> CompletedDecision<RQ, OP>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: OrderingProtocolMessage<RQ>,
 {
     pub fn into(
@@ -112,6 +118,7 @@ where
     ) -> (
         SeqNo,
         DecisionMetadata<RQ, OP>,
+        Vec<DecisionAD<RQ, OP>>,
         Vec<ShareableConsensusMessage<RQ, OP>>,
         ProtocolConsensusDecision<RQ>,
         LoggingDecision,
@@ -119,6 +126,7 @@ where
         (
             self.seq,
             self.metadata,
+            self.additional_data,
             self.messages,
             self.protocol_decision,
             self.logged_info,

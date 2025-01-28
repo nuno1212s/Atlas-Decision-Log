@@ -1,10 +1,8 @@
 use crate::decisions::{CompletedDecision, OnGoingDecision};
 use atlas_common::ordering::{InvalidSeqNo, Orderable, SeqNo};
-use atlas_common::serialization_helper::SerType;
+use atlas_common::serialization_helper::SerMsg;
 use atlas_core::ordering_protocol::networking::serialize::OrderingProtocolMessage;
-use atlas_core::ordering_protocol::{
-    DecisionMetadata, ProtocolConsensusDecision, ShareableConsensusMessage,
-};
+use atlas_core::ordering_protocol::{DecisionAD, DecisionMetadata, ProtocolConsensusDecision, ShareableConsensusMessage};
 use either::Either;
 use std::collections::VecDeque;
 use tracing::{error, warn};
@@ -12,7 +10,7 @@ use tracing::{error, warn};
 /// The log for decisions which are currently being decided
 pub struct DecidingLog<RQ, OP, PL>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: OrderingProtocolMessage<RQ>,
 {
     // The seq no of the first decision in the queue
@@ -29,7 +27,7 @@ where
 
 impl<RQ, OP, PL> DecidingLog<RQ, OP, PL>
 where
-    RQ: SerType,
+    RQ: SerMsg,
     OP: OrderingProtocolMessage<RQ>,
 {
     pub fn init(default_capacity: usize, starting_seq: SeqNo, persistent_log: PL) -> Self {
@@ -128,6 +126,21 @@ where
                 warn!("Progressed decision that has already been decided?")
             }
         }
+    }
+    
+    pub fn decision_additional_data(&mut self, seq: SeqNo, additional_decision_data: DecisionAD<RQ, OP>) {
+        let index = seq.index(self.curr_seq);
+
+        match index {            
+            Either::Right(index) => {
+                self.decision_at_index(index)
+                    .insert_additional_data(additional_decision_data);
+            }
+            Either::Left(_) => {
+                warn!("Progressed decision that has already been decided")
+            }
+        }
+        
     }
 
     pub fn decision_metadata(&mut self, seq: SeqNo, metadata: DecisionMetadata<RQ, OP>) {

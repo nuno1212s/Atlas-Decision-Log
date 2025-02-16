@@ -10,9 +10,7 @@ use atlas_common::ordering::{InvalidSeqNo, Orderable, SeqNo};
 use atlas_common::serialization_helper::SerMsg;
 use atlas_common::Err;
 use atlas_core::executor::DecisionExecutorHandle;
-use atlas_core::ordering_protocol::loggable::{
-    LoggableOrderProtocol, PProof,
-};
+use atlas_core::ordering_protocol::loggable::{LoggableOrderProtocol, PProof};
 use atlas_core::ordering_protocol::{
     Decision, DecisionAD, DecisionInfo, DecisionMetadata, OrderingProtocol,
     ProtocolConsensusDecision, ProtocolMessage,
@@ -247,11 +245,11 @@ where {
                         }
                         DecisionInfo::PartialDecisionInformation(messages) => {
                             let (decisions_ad, messages) = messages.into();
-                            
+
                             decisions_ad.into_iter().for_each(|decision_ad| {
                                 self.deciding_log.decision_additional_data(seq, decision_ad);
                             });
-                            
+
                             messages.into_iter().for_each(|message| {
                                 self.deciding_log.decision_progressed(seq, message);
                             });

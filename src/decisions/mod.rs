@@ -1,7 +1,9 @@
 use atlas_common::ordering::{Orderable, SeqNo};
 use atlas_common::serialization_helper::SerMsg;
 use atlas_core::ordering_protocol::networking::serialize::OrderingProtocolMessage;
-use atlas_core::ordering_protocol::{DecisionAD, DecisionMetadata, ProtocolConsensusDecision, ShareableConsensusMessage};
+use atlas_core::ordering_protocol::{
+    DecisionAD, DecisionMetadata, ProtocolConsensusDecision, ShareableConsensusMessage,
+};
 use atlas_logging_core::decision_log::LoggingDecision;
 
 /// A struct to store the ongoing decision known parameters
@@ -77,7 +79,7 @@ where
     pub fn insert_additional_data(&mut self, data: DecisionAD<RQ, OP>) {
         self.additional_data.push(data);
     }
-    
+
     pub fn insert_component_message(&mut self, partial: ShareableConsensusMessage<RQ, OP>) {
         self.logging_decision.insert_message::<RQ, OP>(&partial);
 

@@ -2,7 +2,9 @@ use crate::decisions::{CompletedDecision, OnGoingDecision};
 use atlas_common::ordering::{InvalidSeqNo, Orderable, SeqNo};
 use atlas_common::serialization_helper::SerMsg;
 use atlas_core::ordering_protocol::networking::serialize::OrderingProtocolMessage;
-use atlas_core::ordering_protocol::{DecisionAD, DecisionMetadata, ProtocolConsensusDecision, ShareableConsensusMessage};
+use atlas_core::ordering_protocol::{
+    DecisionAD, DecisionMetadata, ProtocolConsensusDecision, ShareableConsensusMessage,
+};
 use either::Either;
 use std::collections::VecDeque;
 use tracing::{error, warn};
@@ -127,11 +129,15 @@ where
             }
         }
     }
-    
-    pub fn decision_additional_data(&mut self, seq: SeqNo, additional_decision_data: DecisionAD<RQ, OP>) {
+
+    pub fn decision_additional_data(
+        &mut self,
+        seq: SeqNo,
+        additional_decision_data: DecisionAD<RQ, OP>,
+    ) {
         let index = seq.index(self.curr_seq);
 
-        match index {            
+        match index {
             Either::Right(index) => {
                 self.decision_at_index(index)
                     .insert_additional_data(additional_decision_data);
@@ -140,7 +146,6 @@ where
                 warn!("Progressed decision that has already been decided")
             }
         }
-        
     }
 
     pub fn decision_metadata(&mut self, seq: SeqNo, metadata: DecisionMetadata<RQ, OP>) {

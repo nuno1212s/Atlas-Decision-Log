@@ -6,13 +6,13 @@ use std::sync::atomic::AtomicUsize;
 use atlas_common::error::*;
 use atlas_common::ordering::{Orderable, SeqNo};
 use atlas_common::serialization_helper::SerMsg;
-use atlas_core::ordering_protocol::loggable::{PProof};
+use atlas_core::ordering_protocol::loggable::message::PersistentOrderProtocolTypes;
+use atlas_core::ordering_protocol::loggable::PProof;
 use atlas_core::ordering_protocol::networking::serialize::{
     OrderProtocolProof, OrderingProtocolMessage,
 };
 use atlas_logging_core::decision_log::serialize::OrderProtocolLog;
 use rayon::prelude::*;
-use atlas_core::ordering_protocol::loggable::message::PersistentOrderProtocolTypes;
 
 #[cfg_attr(feature = "serialize_serde", derive(Serialize, Deserialize))]
 // Checkout https://serde.rs/attr-bound.html as to why we are using this

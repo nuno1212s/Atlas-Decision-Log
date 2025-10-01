@@ -1,5 +1,6 @@
 use crate::decision_log::DecisionLog;
 use atlas_common::ordering::{Orderable, SeqNo};
+use atlas_common::phantom::FPhantom;
 use atlas_common::serialization_helper::SerMsg;
 use atlas_communication::reconfiguration::NetworkInformationProvider;
 use atlas_core::ordering_protocol::loggable::message::PersistentOrderProtocolTypes;
@@ -10,10 +11,9 @@ use atlas_core::ordering_protocol::networking::serialize::{
 use atlas_logging_core::decision_log::serialize::{DecisionLogMessage, OrderProtocolLogPart};
 #[cfg(feature = "serialize_serde")]
 use serde::{Deserialize, Serialize};
-use std::marker::PhantomData;
 use std::sync::Arc;
 
-pub struct LogSerialization<RQ, OP, POP>(PhantomData<fn() -> (RQ, OP, POP)>);
+pub struct LogSerialization<RQ, OP, POP>(FPhantom<(RQ, OP, POP)>);
 
 #[cfg_attr(feature = "serialize_serde", derive(Serialize, Deserialize))]
 // Checkout https://serde.rs/attr-bound.html as to why we are using this

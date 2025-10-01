@@ -16,11 +16,11 @@ thiserror = "1.0"
 atlas-common = { path = "../Atlas-Common" }
 atlas-metrics = { path = "../Atlas-Metrics" }
 atlas-core = { path = "../Atlas-Core" }
+atlas-communication = { path = "../Atlas-Communication" }
 atlas-logging-core = { path = "../Atlas-Logging-Core" }
 
 either = "*"
 tracing = "*"
-atlas-communication = { path = "../Atlas-Communication" }
 
 rayon = "1"
 

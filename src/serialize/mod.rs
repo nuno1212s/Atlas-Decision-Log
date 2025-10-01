@@ -1,5 +1,6 @@
 use crate::decision_log::DecisionLog;
 use atlas_common::ordering::{Orderable, SeqNo};
+use atlas_common::phantom::FPhantom;
 use atlas_common::serialization_helper::SerMsg;
 use atlas_communication::reconfiguration::NetworkInformationProvider;
 use atlas_core::ordering_protocol::loggable::message::PersistentOrderProtocolTypes;
@@ -11,7 +12,6 @@ use atlas_logging_core::decision_log::serialize::{DecisionLogMessage, OrderProto
 #[cfg(feature = "serialize_serde")]
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use atlas_common::phantom::FPhantom;
 
 pub struct LogSerialization<RQ, OP, POP>(FPhantom<(RQ, OP, POP)>);
 

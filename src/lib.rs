@@ -382,9 +382,7 @@ where {
     }
 
     #[instrument(skip_all, level = Level::DEBUG, fields(current_seq = self.decision_log.sequence_number().into_u32()))]
-    fn sequence_number_with_proof(
-        &self,
-    ) -> Result<Option<(SeqNo, Proof<RQ, OP>)>> {
+    fn sequence_number_with_proof(&self) -> Result<Option<(SeqNo, Proof<RQ, OP>)>> {
         if let Some(decision) = self.decision_log.last_decision() {
             Ok(Some((decision.sequence_number(), decision)))
         } else {
@@ -393,10 +391,7 @@ where {
     }
 
     #[instrument(skip(self), level = Level::DEBUG)]
-    fn get_proof(
-        &self,
-        seq: SeqNo,
-    ) -> Result<Option<Proof<RQ, OP>>> {
+    fn get_proof(&self, seq: SeqNo) -> Result<Option<Proof<RQ, OP>>> {
         if let Some(decision) = self.decision_log.last_execution() {
             if seq > decision {
                 Err!(DecisionLogError::NoProofBySeq(seq, decision))

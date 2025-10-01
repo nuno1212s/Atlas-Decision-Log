@@ -110,6 +110,7 @@ where
     }
 }
 
+#[allow(clippy::type_complexity)]
 impl<RQ, OP> CompletedDecision<RQ, OP>
 where
     RQ: SerMsg,

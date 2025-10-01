@@ -1,7 +1,6 @@
 use either::Either;
 #[cfg(feature = "serialize_serde")]
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::AtomicUsize;
 
 use atlas_common::error::*;
 use atlas_common::ordering::{Orderable, SeqNo};
@@ -12,7 +11,6 @@ use atlas_core::ordering_protocol::networking::serialize::{
     OrderProtocolProof, OrderingProtocolMessage,
 };
 use atlas_logging_core::decision_log::serialize::OrderProtocolLog;
-use rayon::prelude::*;
 
 #[cfg_attr(feature = "serialize_serde", derive(Serialize, Deserialize))]
 // Checkout https://serde.rs/attr-bound.html as to why we are using this
@@ -102,6 +100,7 @@ where
 
     //TODO: Maybe make these data structures a BTreeSet so that the messages are always ordered
     //By their seq no? That way we cannot go wrong in the ordering of messages.
+    #[allow(dead_code)]
     pub(crate) fn finished_quorum_execution(
         &mut self,
         proof: &PProof<RQ, OP, POP>,

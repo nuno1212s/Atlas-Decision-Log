@@ -12,7 +12,6 @@ serialize_capnp = []
 default = ["serialize_serde"]
 
 [dependencies]
-anyhow = "1.0"
 thiserror = "1.0"
 atlas-common = { path = "../Atlas-Common" }
 atlas-metrics = { path = "../Atlas-Metrics" }

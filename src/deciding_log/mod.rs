@@ -1,5 +1,5 @@
 use crate::decisions::{CompletedDecision, OnGoingDecision};
-use atlas_common::ordering::{InvalidSeqNo, Orderable, SeqNo};
+use atlas_common::ordering::{Orderable, SeqNo};
 use atlas_common::serialization_helper::SerMsg;
 use atlas_core::ordering_protocol::networking::serialize::OrderingProtocolMessage;
 use atlas_core::ordering_protocol::{
@@ -7,7 +7,7 @@ use atlas_core::ordering_protocol::{
 };
 use either::Either;
 use std::collections::VecDeque;
-use tracing::{error, warn};
+use tracing::warn;
 
 /// The log for decisions which are currently being decided
 pub struct DecidingLog<RQ, OP, PL>
@@ -24,7 +24,7 @@ where
     currently_deciding: VecDeque<OnGoingDecision<RQ, OP>>,
 
     // A reference to the persistent log so we can immediately begin the storage process
-    persistent_log: PL,
+    _persistent_log: PL,
 }
 
 impl<RQ, OP, PL> DecidingLog<RQ, OP, PL>
@@ -36,7 +36,7 @@ where
         Self {
             curr_seq: starting_seq,
             currently_deciding: VecDeque::with_capacity(default_capacity),
-            persistent_log,
+            _persistent_log: persistent_log,
         }
     }
 

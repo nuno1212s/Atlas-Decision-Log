@@ -10,10 +10,10 @@ use atlas_core::ordering_protocol::networking::serialize::{
 use atlas_logging_core::decision_log::serialize::{DecisionLogMessage, OrderProtocolLogPart};
 #[cfg(feature = "serialize_serde")]
 use serde::{Deserialize, Serialize};
-use std::marker::PhantomData;
 use std::sync::Arc;
+use atlas_common::phantom::FPhantom;
 
-pub struct LogSerialization<RQ, OP, POP>(PhantomData<fn() -> (RQ, OP, POP)>);
+pub struct LogSerialization<RQ, OP, POP>(FPhantom<(RQ, OP, POP)>);
 
 #[cfg_attr(feature = "serialize_serde", derive(Serialize, Deserialize))]
 // Checkout https://serde.rs/attr-bound.html as to why we are using this
